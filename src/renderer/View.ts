@@ -1,7 +1,7 @@
 import { Raycaster, Vector2, Vector3 } from 'three';
 import { IsInteractive, ViewInteractions } from './RenderedEntity';
 import { Camera } from './Camera';
-import { instanceOfInstancedEntity, RenderedInstances } from '../utils/Instancing';
+import { instanceOfInstancedEntity, InstanceCollection } from '../utils/Instancing';
 
 type ViewAction =  'resize' | 'click' |'mousemove' | 'hover' | 'mousedown' | 'mouseup' | 'keydown' | 'keyup' |'scroll';
 type ViewCallback = (event?: MouseEvent | KeyboardEvent) => void;
@@ -150,7 +150,7 @@ export class View implements IView {
             let intersections = this.pointer.ray.intersectObject(entity, true).map(i => i.point);
             let doesIntersect = intersections.length > 0;
 
-            if (RenderedInstances.isInstance(entity) && doesIntersect) {
+            if (InstanceCollection.isInstance(entity) && doesIntersect) {
                 entity.onHover(intersections);
                 entity.interactions.hovered = true;
                 

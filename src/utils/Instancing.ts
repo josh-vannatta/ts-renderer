@@ -1,78 +1,14 @@
 import { IsInteractive, RenderedEntity, ViewInteractions } from '../renderer/RenderedEntity';
 import { BufferGeometry, Color, DynamicDrawUsage, InstancedBufferAttribute, InstancedMesh, Material, Matrix4, Mesh, Quaternion, Vector3 } from 'three';
-import { mergeBufferGeometries } from './BufferUtils';
 
-export class InstanceMesh_Old extends RenderedEntity {
-    public vertices: Mesh[] = [];
-    public exceptions: Mesh[] = [];
-    private _matrix = new Matrix4();
-    private _instance: Mesh | undefined;
-
-    constructor() {
-        super();
-        this._instance = undefined;
-    }
-
-    public onCreate() {}
-    public onUpdate() {}
-
-    public static Instance(geometry, material) {
-        return new Mesh(geometry, material);
-    }
-
-    public addInstance(instance: Mesh) {       
-        this.vertices.push(instance);
-    }
-
-    public removeInstance(instance: Mesh) {
-        this.vertices = this.vertices.filter(ref => ref != instance);
-    }
-
-    public clear() {        
-        if (this._instance) {
-            this.remove(this._instance);
-            this.vertices = [];
-        }
-
-        return this;
-    }
-
-    public build() {        
-        let quaternion = new Quaternion();
-        let intersects = this.vertices.filter(mesh => 
-            !this.exceptions.find(e => e.position.equals(mesh.position)))
-
-        let geometries = intersects.map(mesh => {
-            let buffer = mesh.geometry.clone();
-            quaternion.setFromEuler(mesh.rotation);
-            this._matrix.compose(mesh.position, quaternion, mesh.scale);
-            buffer.applyMatrix4(this._matrix);
-            return buffer;
-        });        
-        
-        let bufferGeometries = mergeBufferGeometries(geometries);
-
-        if (!bufferGeometries)
-            return;
-
-        this._instance = new Mesh(bufferGeometries, this.vertices[0].material);
-        this.add(this._instance);                
-    }
-
-    public getAll() {
-        return this.vertices;
-    }
-
-}
-
-export class RenderedInstances extends RenderedEntity implements IsInteractive {
+export class InstanceCollection extends RenderedEntity implements IsInteractive {
     public mesh: InstancedMesh<BufferGeometry>;
     public interactions: ViewInteractions;
     public readonly isRenderedInstances: boolean = true;
 
     constructor(
         public readonly renderedEntities: InstancedEntity[], 
-        private ref: RenderedInstance) 
+        private ref: Instance) 
     {
         super();
         renderedEntities.forEach((entity, i) => entity.instance = ref.clone(i));
@@ -162,7 +98,7 @@ export class RenderedInstances extends RenderedEntity implements IsInteractive {
 
     public onSelect() {}
 
-    public static isInstance(object: any): object is RenderedInstances {
+    public static isInstance(object: any): object is InstanceCollection {
         return object && object.isRenderedInstances == true;
     }
 }
@@ -171,7 +107,7 @@ interface InstanceMaterial extends Material {
     color: Color
 }
 
-export class RenderedInstance {
+export class Instance {
     public color: Color;
     public index: number;
     public bounding: number;
@@ -183,8 +119,8 @@ export class RenderedInstance {
         public material: InstanceMaterial) 
     { }
 
-    public clone(index: number): RenderedInstance {
-        const instance = new RenderedInstance(this.geometry, this.material);
+    public clone(index: number): Instance {
+        const instance = new Instance(this.geometry, this.material);
 
         instance.index = index;
         instance.needsUpdate = this.needsUpdate;
@@ -199,7 +135,7 @@ export class RenderedInstance {
 }
 
 export interface InstancedEntity extends RenderedEntity {
-    instance: RenderedInstance
+    instance: Instance
 }
 
 export function instanceOfInstancedEntity(object: any): object is InstancedEntity {
