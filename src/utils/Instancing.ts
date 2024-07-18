@@ -1,5 +1,5 @@
+import { BufferGeometry, Color, DynamicDrawUsage, InstancedBufferAttribute, InstancedMesh, Material, Vector3 } from 'three';
 import { IsInteractive, RenderedEntity, ViewInteractions } from '../renderer/RenderedEntity';
-import { BufferGeometry, Color, DynamicDrawUsage, InstancedBufferAttribute, InstancedMesh, Material, Matrix4, Mesh, Quaternion, Vector3 } from 'three';
 
 export class InstanceCollection extends RenderedEntity implements IsInteractive {
     public mesh: InstancedMesh<BufferGeometry>;
