@@ -1,6 +1,7 @@
-import {  Group, Vector3 } from 'three';
+import {  Color, Group, Vector3 } from 'three';
 import { Font, FontLoader, GLTF, GLTFLoader } from 'three/examples/jsm/Addons.js';
 import { AssetRecord } from '../utils/AssetRegister';
+import { MeshUtils } from '../utils/MeshUtils';
 
 export interface AssetOptions { 
     position?: Vector3,
@@ -12,15 +13,30 @@ export interface AssetOptions {
 interface AssetOptionRecord { [asset: string]: AssetOptions }
 
 export class LoadedAssets {
-    public static globalAssets: {
+    public static compiled: {
         [asset: string]: Group
     } = {};
 
     public static options: AssetOptionRecord = {};
     public static requestedAssets: string[] = []
+    public static globalAssets: AssetRecord[] = [];
 
     constructor(public localAssets: AssetRecord = {}) { 
         this.load(localAssets);
+        
+        LoadedAssets.globalAssets.forEach(assets => {
+            Object.keys(assets).forEach(asset => {
+                if (localAssets[asset])
+                    return;
+
+                this.addAsset(asset, assets[asset].location, {
+                    position: this.convertVector(assets[asset].position),
+                    rotation: assets[asset].rotation,
+                    scale: this.convertVector(assets[asset].scale),
+                    color: assets[asset].color
+                })
+            })
+        })
     }
 
     public static build(assets: AssetRecord = {}) {
@@ -52,9 +68,9 @@ export class LoadedAssets {
         const location = this.localAssets[asset]?.location;
 
         if (location) {
-            const clone = LoadedAssets.globalAssets[location].clone();
+            const clone = LoadedAssets.compiled[location].clone();
 
-            clone["color"] = LoadedAssets.globalAssets[location]["color"];
+            clone["color"] = LoadedAssets.compiled[location]["color"];
 
             return clone;
         }
@@ -88,7 +104,7 @@ export class LoadedAssets {
     }
 
     public static register(asset: string, scene: Group) {
-        LoadedAssets.globalAssets[asset] = scene;
+        LoadedAssets.compiled[asset] = scene;
     }
 }
 
@@ -126,6 +142,7 @@ export class Loader {
 
     public static register(assets: AssetRecord) {
         this.loadInstance.load(assets);
+        LoadedAssets.globalAssets.push(assets)
     }
 
     public static hasLoadedAssets(object: any): object is HasLoadedAssets {
@@ -159,7 +176,7 @@ export class Loader {
                     scene.rotateY(rotation ?? 0);
 
                     if (options.color)
-                        scene["color"] = options.color;
+                        MeshUtils.setColor(scene, options.color)
                 }                
                 
                 modelsLoaded++;
@@ -176,8 +193,6 @@ export class Loader {
 
             const handleError = (asset) => (error) => {
                 console.error(`Error: Asset "${asset}" ${error.currentTarget?.statusText.toLowerCase()}`);
-                console.error(error);
-                reject(error);
                 this.setLoaded(percent, `Error: Asset "${asset}" ${error.currentTarget?.statusText.toLowerCase()}`);
             }
 

@@ -1,5 +1,5 @@
 import React, { FC } from "react";
-import { RenderedView } from "../renderer/RenderedView";
+import { RenderContext, RenderedView } from "../renderer/RenderedView";
 import { ExampleRender } from "./ExampleRender";
 
 interface Props {
@@ -17,7 +17,14 @@ export const ExampleApp: FC<Props> = props => {
         return <></>
 
     return (
-        <RenderedView render={render}>
+        <RenderedView  render={render}>
+            <RenderContext.Consumer>
+                { context => {
+                    console.log(context.loading.percent)
+
+                    return <></>    
+                }}
+            </RenderContext.Consumer>
         </RenderedView>
     );
 }

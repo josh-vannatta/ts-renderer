@@ -35,7 +35,7 @@ const RenderedView : FunctionComponent<Props> = props => {
     React.useEffect(() => {
         return () => props.render.pause();
     }, [])
-    
+
     // Bind canvas to render instance 
     React.useEffect(() => {       
         if (!canvasEl.current || !props.render)
@@ -43,7 +43,16 @@ const RenderedView : FunctionComponent<Props> = props => {
 
         props.render.bind(canvasEl.current);
         props.render.start();
-        props.render.loader.onLoad(handleLoading);
+        props.render.loader.onLoad((percent, message) => {
+            setContext({        
+                loading: {
+                    ...context.loading,        
+                    percent: percent,
+                    finished: percent >= 100,
+                    feedback: message
+                }
+            });
+        })
     }, [ props.render ]);
 
     if (!props.render)
@@ -55,24 +64,6 @@ const RenderedView : FunctionComponent<Props> = props => {
         props.onSelect?.(selected);
         props.render.deselect();
     }          
-
-    const handleLoading = (percent, message) => {
-        setContext({        
-            loading: {
-                ...context.loading,        
-                percent: percent,
-                feedback: message
-            }
-        });
-
-        if (percent >= 100) { 
-            setTimeout(() => {
-                setContext({ 
-                    loading: { ...context.loading, finished: true }
-                });
-            }, 1500);
-        }
-    }
 
     const handleMouseMove = () => {
         props.render.panCamera(false);

@@ -222,20 +222,19 @@ abstract class Render<RenderedScene extends Scene> implements IRender<RenderedSc
             controller.load(this);  
         });        
 
+        const start = () => {
+            this.setup();     
+            this.run();                
+            this.loader.setLoaded(100, 'Ready!');   
+            this.view.on('mousemove', evt => this.handleHover())
+            this.view.on('click', evt => this.handleSelect());
+            this.controllers.forEach(controller => controller.onInit());  
+            return true;
+        }
+
         return this.loader.loadAssets()
-            .then(() => {                
-                this.setup();     
-                this.run();                
-                this.loader.setLoaded(100, 'Ready!');   
-                this.view.on('mousemove', evt => this.handleHover())
-                this.view.on('click', evt => this.handleSelect());
-                this.controllers.forEach(controller => controller.onInit());  
-                return true;
-            })
-            .catch(e => {
-                console.error(e);
-                throw new Error(e);
-            });
+            .then(start)
+            .catch(start);
     }
 
     protected loadFonts(fontList: string[]) {

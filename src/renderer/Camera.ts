@@ -28,6 +28,7 @@ export class Camera {
         );        
         this.canvas = canvas;
         this.lastPosition = new Vector3().copy(this.position());
+        this.controls = new OrbitControls(this.camera, this.canvas);
     }
 
     public get settings() {
@@ -79,7 +80,6 @@ export class Camera {
 
     public enableControls() {
         this.activeControls = true;
-        this.controls = new OrbitControls(this.camera, this.canvas);
     }
 
     public disableControls() {
