@@ -17,6 +17,8 @@ export class Scene {
         return this._scene;
     }
 
+    public onClear() {}
+
     public add(...objects: Object3D[]) {
         this._scene.add(...objects);
     }
@@ -72,6 +74,7 @@ export class Scene {
 
     public removeEntity(entity: RenderedEntity) {
         entity.onDestroy();
+        entity.removeObservers();
         const deactivated = new Set<IsInteractive>();
         
         this._scene.remove(entity);

@@ -5,6 +5,11 @@ import { Point } from "./entities/Point";
 
 export class ExampleScene extends Scene {
     background: Background
-    line: Line;
-    points: [ Point, Point];
+    lines: Line[] = [];
+    points: Point[] = [];
+
+    public override onClear(): void {
+        this.lines = []
+        this.points = []
+    }
 }

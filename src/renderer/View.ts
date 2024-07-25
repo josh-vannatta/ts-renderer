@@ -1,7 +1,8 @@
 import { Raycaster, Vector2, Vector3 } from 'three';
-import { IsInteractive, ViewInteractions } from './RenderedEntity';
+import { InstanceCollection } from '../utils/Instancing';
 import { Camera } from './Camera';
-import { instanceOfInstancedEntity, InstanceCollection } from '../utils/Instancing';
+import { EventSource } from '../utils/EventSource';
+import { IsInteractive, RenderedEntity, ViewInteractions } from './RenderedEntity';
 
 type ViewAction =  'resize' | 'click' |'mousemove' | 'hover' | 'mousedown' | 'mouseup' | 'keydown' | 'keyup' |'scroll';
 type ViewCallback = (event?: MouseEvent | KeyboardEvent) => void;
@@ -12,6 +13,13 @@ export interface IView {
     remove(action: ViewAction, callback: ViewCallback): void;
 }
 
+export type ViewEvents = EventSource<ViewEvent>;
+
+export interface ViewEvent {
+    entity: IsInteractive,
+    view: Vector3
+}   
+
 export class View implements IView {
     public pointer = {
         x: 0,
@@ -21,16 +29,17 @@ export class View implements IView {
         right: false,
         middle: false
     }
-    public window: Vector3 = new Vector3;
+    public window: Vector3 = new Vector3();
     public clicked: boolean = false;
     public keyPresses: string[] = [];
     private canvas: HTMLCanvasElement;
 
-    constructor() { }
+    constructor(private _camera: Camera) {
+    }
 
-    public update(camera: Camera) {   
-        let height = 2 * Math.tan( camera.fov / 2 ) * Math.abs( camera.lense.position.z );
-        this.window.set(height, height * camera.aspect, camera.lense.position.z);
+    public update() {   
+        let height = 2 * Math.tan( this._camera.fov / 2 ) * Math.abs( this._camera.lense.position.z );
+        this.window.set(height, height * this._camera.aspect, this._camera.lense.position.z);
     }
 
     public handleResize() {
@@ -140,11 +149,11 @@ export class View implements IView {
     // canvas.addEventListener('scroll', (event: MouseEvent)=> this.handleScroll(event));
   }
 
-    public intersect(entities: IsInteractive[], camera: Camera): IsInteractive[] 
+    public intersect(entities: IsInteractive[]): IsInteractive[] 
     {        
         let array: IsInteractive[] = [];
         
-        this.pointer.ray.setFromCamera(new Vector2(this.pointer.x, this.pointer.y), camera.lense);
+        this.pointer.ray.setFromCamera(new Vector2(this.pointer.x, this.pointer.y), this._camera.lense);
 
         entities.forEach(entity => {
             let intersections = this.pointer.ray.intersectObject(entity, true).map(i => i.point);
@@ -164,7 +173,7 @@ export class View implements IView {
                 array.push(entity);
                 entity.onHover(intersections);
                 entity.interactions.hovered = true;
-                entity.interactions.cameraDistance = camera.lense.position.distanceTo(entity.worldPosition);
+                entity.interactions.cameraDistance = this._camera.lense.position.distanceTo(entity.worldPosition);
             } else {
                 if (entity.interactions.isHovered)
                     entity.onReset();
@@ -188,17 +197,17 @@ export class View implements IView {
         return center;
     }    
 
-    public getScreenPosition(entity: IsInteractive, camera: Camera) {
+    public getScreenPosition(entity: IsInteractive): Vector3 {
         let vector = entity.worldPosition,
             wHalf = this.canvas.width * .5,
             hHalf = this.canvas.height * .5;     
 
-        vector.project(camera.lense);        
+        vector.project(this._camera.lense);        
 
         vector.x = (vector.x * wHalf) + wHalf;
         vector.y = - (vector.y * hHalf) + hHalf;        
 
-        return new Vector3().set(vector.x, vector.y, camera.distanceTo(entity.worldPosition));
+        return new Vector3().set(vector.x, vector.y, this._camera.distanceTo(entity.worldPosition));
     }
     
     public onResize: ViewCallback[] = [];

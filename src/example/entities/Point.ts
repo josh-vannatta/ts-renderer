@@ -1,24 +1,26 @@
-import { Clock, Group, Mesh, MeshToonMaterial, SphereGeometry, Vector3 } from "three";
-import { IsInteractive, RenderedEntity, ViewInteractions } from "../../renderer/RenderedEntity";
+import { Clock, Group, Mesh, MeshToonMaterial, SphereGeometry } from "three";
 import { HasLoadedAssets, LoadedAssets } from "../../renderer/Loader";
-import { appAssets } from "../../App";
-import { State } from "../../utils/StateUtils";
+import { HasData, IsInteractive, RenderedEntity, ViewInteractions } from "../../renderer/RenderedEntity";
 import * as Easing from "../../utils/Easing";
+import { State } from "../../utils/StateUtils";
+import { PointData, PointStatus } from "../ExampleApp";
+
+const baseUpdates = {
+    atom: {
+        scale: { x: 1, y: 1, z: 1 },
+    },
+    model: {
+        material: {
+            color: { r: 0, g: 200, b: 210 }
+        }
+    },
+    scale: { x: 1, y: 1, z: 1 },
+}
 
 class BaseState extends State {
     easing = Easing.Quartic.In;
     duration = 300;
-    updates = {
-        atom: {
-            scale: { x: 1, y: 1, z: 1 },
-        },
-        model: {
-            material: {
-                color: { r: 0, g: 200, b: 210 }
-            }
-        },
-        scale: { x: 1, y: 1, z: 1 },
-    }
+    updates = baseUpdates
 }
 
 class HoveredState extends State {
@@ -37,13 +39,54 @@ class HoveredState extends State {
     }
 }
 
-export class Point extends RenderedEntity implements IsInteractive, HasLoadedAssets {
+class OnState extends State {
+    easing = Easing.Quartic.In;
+    duration = 500;
+    updates = {
+        ...baseUpdates,
+        model: {
+            material: {
+                color: { r: 200, g: 0, b: 0 }
+            }
+        },
+    }
+}
+
+class OffState extends State {
+    easing = Easing.Quartic.In;
+    duration = 500;
+    updates = {
+        ...baseUpdates,
+        model: {
+            material: {
+                color: { r: 0, g: 200, b: 0 }
+            }
+        },
+    }
+}
+
+class DisabledState extends BaseState {
+    easing = Easing.Quartic.In;
+    duration = 500;
+    updates = {
+        ...baseUpdates,
+        model: {
+            material: {
+                color: { r: 0, g: 0, b: 200 }
+            }
+        },
+    }
+}
+
+export class Point extends RenderedEntity implements IsInteractive, HasLoadedAssets, HasData<PointData> {
     public interactions = new ViewInteractions();
     public loadedAssets: LoadedAssets = new LoadedAssets();
     public model: Mesh;
     public atom: Group;
 
-    constructor() {
+    constructor(
+        public data: PointData
+    ) {
         super();
     }
     
@@ -68,16 +111,25 @@ export class Point extends RenderedEntity implements IsInteractive, HasLoadedAss
     }
 
     public onUpdate(clock?: Clock): void {
-        
+        if (this.interactions.hovered || this.interactions.selected)
+            return;
+
+        if (this.data.status == PointStatus.On)
+            this.state.set(new OnState())
+        if (this.data.status == PointStatus.Off)
+            this.state.set(new OffState())
+        if (this.data.status == PointStatus.Disabled)
+            this.state.set(new DisabledState())        
     }
 
     public onHover() {
         this.state.set(new HoveredState())
+        this.state.locked = true;
     }
     public onReset() {
+        this.state.locked = false;
         this.state.set(new BaseState())
     }
     public onSelect() {
-        console.log(this)
     }
 }

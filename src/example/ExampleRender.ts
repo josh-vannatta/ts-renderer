@@ -1,21 +1,22 @@
 import { IRender, Render } from "../renderer/Render";
 import { ExampleController } from "./controllers/ExampleController";
+import { PointData } from "./ExampleApp";
 import { ExampleScene } from "./ExampleScene";
 
 export interface IExampleRender extends IRender<ExampleScene> {
-    background: ExampleController
+    controller: ExampleController
 }
 
 export class ExampleRender extends Render<ExampleScene> implements IExampleRender {
-    public background: ExampleController;
+    public id = Math.random() * 1000
+    public controller: ExampleController;
 
-    constructor() {
+    constructor(points: PointData[]) {
         super(new ExampleScene());
-
-        this.background = new ExampleController(this.camera, this.scene);
+        this.controller = new ExampleController(points, this.scene);
     }
 
-    protected setup(): void {
+    protected onSetup(): void {
         this.camera.settings.far = 20000;
         this.camera.lookAt({x: 0, y: 2, z: 0});
         this.camera.setPosition({x: -50, y: 0, z: -50}); 
@@ -26,8 +27,8 @@ export class ExampleRender extends Render<ExampleScene> implements IExampleRende
         this.autoRotate(false)
     }
 
-    public start(): void {
-        this.register(this.background)
+    public onStart(): void {
+        this.register(this.controller)
             .initialize()
             .then(() => this.renderAnimation())
             .catch(console.error);
@@ -36,6 +37,5 @@ export class ExampleRender extends Render<ExampleScene> implements IExampleRende
     }
 
     protected onUpdate(): void {
-        
     }
 }

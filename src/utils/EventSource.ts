@@ -37,6 +37,12 @@ export class EventSource<T = any> {
         this._record = {};
     }
 
+    public clear() {
+        Object.values(this._observers).forEach(observer => {
+            this.removeObserver(observer);
+        })
+    }
+
     public addObserver(observer: EventObserver<T>) {
         if (!this._record[observer.id]) 
             this._record[observer.id] = [];

@@ -6,6 +6,8 @@ import { EmissionInstances } from "./EmissionInstances";
 import { ConnectionNode } from "./ConnectionPath";
 import { PathDirection, Emission } from "./Emission";
 
+export type ConnectionEndpoints = [ HasPosition, HasPosition] ;
+
 export interface HasPosition {
     position: Vector3;
     uuid: string;
@@ -23,7 +25,7 @@ export abstract class Connection<ConnectionCurve extends Curve<Vector3> = Curve<
     private _emissions: Emission[];
     private _deltas: [ Vector3, Vector3 ];
 
-    constructor(public readonly endpoints: [ HasPosition, HasPosition ]) {
+    constructor(public readonly endpoints: ConnectionEndpoints) {
         super();
         if (endpoints[0] == endpoints[1])
             throw new Error("Cannot create a connection between the same entity")
@@ -39,6 +41,8 @@ export abstract class Connection<ConnectionCurve extends Curve<Vector3> = Curve<
 
     protected abstract createLine(points?: Vector3[]): Line<BufferGeometry> | Mesh<BufferGeometry>; 
     protected abstract computeCurve(): ConnectionCurve;
+
+    public static Curves = CurveUtils
     
     public onCreate() {
         this.curve = this.computeCurve();
@@ -208,6 +212,10 @@ export abstract class Connection<ConnectionCurve extends Curve<Vector3> = Curve<
             CurveUtils.getTension(upstream, 0)  ?? this.endpoints[0].position.clone(),
             CurveUtils.getTension(downstream, 1) ?? this.endpoints[1].position.clone()
         ];
+    }
+
+    public get positions(): [ Vector3, Vector3 ] {
+        return [ this.endpoints[0].position, this.endpoints[1].position]
     }
 
     public set fidelity(fidelity: number) {

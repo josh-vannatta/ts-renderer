@@ -1,8 +1,14 @@
 import { CubicBezierCurve3, Curve, LineCurve3, QuadraticBezierCurve3, Vector3 } from "three";
-import { HasPosition } from "../Connections/Connection";
 import { VectorUtils } from "./VectorUtils";
+import { HasPosition } from "../connections/Connection";
+
+export type Quadratic = QuadraticBezierCurve3;
+export type Cubic = CubicBezierCurve3;
+export type RightAngle = CubicBezierCurve3;
+export type Linear = LineCurve3;
 
 export class CurveUtils {
+
     public static Linear(a: HasPosition, b: HasPosition, curve?: Curve<Vector3>) {
         if (curve && !this.isLinear(curve))
             curve = undefined;
@@ -55,7 +61,6 @@ export class CurveUtils {
 
     public static RightAngle(a: HasPosition, b: HasPosition, curve?: Curve<Vector3>) {   
         curve = this.Cubic(a, b, curve);
-        curve.type = "RightAngleCurve";
 
         return <CubicBezierCurve3> curve;
     }
@@ -183,7 +188,7 @@ export class CurveUtils {
         if (tensions.length == 0)
             return;        
 
-        return VectorUtils.average(...tensions);
+        return VectorUtils.midpoint(...tensions);
     }
 
     public static isLinear(curve: Curve<Vector3>): curve is LineCurve3 {

@@ -2,7 +2,7 @@ import { Vector3, Euler, Quaternion, Object3D, Clock, Intersection } from "three
 import { StateMachine } from "../utils/StateUtils";
 import { EventSource, EventObserver } from "../utils/EventSource";
 
-interface ListenableProperties {
+export interface ObservedProperties {
     position?: Vector3;
     rotation?: Euler;
     quaternion?: Quaternion;
@@ -11,12 +11,16 @@ interface ListenableProperties {
 
 type EntityCallback<T> = (entity: RenderedEntity) => T;
 
+export interface HasData<T> {
+    data: T
+}
+
 export abstract class RenderedEntity extends Object3D {
     public state: StateMachine;
     readonly active: boolean = false;
     private _childEntites: RenderedEntity[];
-    private _listeners: EventSource<ListenableProperties>;
-    private _lastState: ListenableProperties;
+    private _listeners: EventSource<RenderedEntity>;
+    private _lastState: ObservedProperties;
     private _additionHandlers: EntityCallback<void>[];
     public isCreated: boolean;
 
@@ -25,7 +29,7 @@ export abstract class RenderedEntity extends Object3D {
         this.state = new StateMachine(this);
         this._childEntites = [];
         this._additionHandlers = [];
-        this._listeners = new EventSource<ListenableProperties>();
+        this._listeners = new EventSource<RenderedEntity>();
         this.isCreated = false;
     }
     
@@ -39,7 +43,7 @@ export abstract class RenderedEntity extends Object3D {
     public update(clock?: Clock): void {
         this.beforeUpdate();
         this.state.update();
-        this.updateListeners(props => this._listeners.notify(props));
+        this.updateListeners(() => this._listeners.notify(this));
         this.onUpdate(clock);
         
         this._childEntites.forEach(child => {
@@ -88,9 +92,9 @@ export abstract class RenderedEntity extends Object3D {
         })
     }
 
-    private updateListeners(onUpdate?: (state: ListenableProperties) => void) {
+    private updateListeners(onUpdate?: () => void) {
         if (!this._lastState)
-            return onUpdate && onUpdate({});
+            return onUpdate && onUpdate();
 
         let needsUpdate = false;
 
@@ -108,14 +112,14 @@ export abstract class RenderedEntity extends Object3D {
         });        
 
         if (needsUpdate && onUpdate)
-            onUpdate(this._lastState);
+            onUpdate();
     }
     
     protected containsEntity(entity: RenderedEntity) {
         return this._childEntites.find(e => e.uuid == entity.uuid) != undefined;
     }
 
-    public addObserver(observer: EventObserver<ListenableProperties>) {
+    public addObserver(observer: EventObserver<RenderedEntity>) {
         this._listeners.addObserver(observer);       
 
         if (this._lastState || observer.simple) 
@@ -129,7 +133,7 @@ export abstract class RenderedEntity extends Object3D {
         };
     }
 
-    public removeObserver(observer: EventObserver<ListenableProperties> | string) {
+    public removeObserver(observer: EventObserver<RenderedEntity> | string) {
         if (!observer)
             return;
 
@@ -139,7 +143,11 @@ export abstract class RenderedEntity extends Object3D {
             this._listeners.removeObservers(observer.id);  
     }   
 
-    public apply(props?: ListenableProperties) {
+    public removeObservers() {
+        this._listeners.clear();
+    }
+
+    public apply(props?: ObservedProperties) {
         if (!props)
             return;
 
@@ -187,6 +195,10 @@ export abstract class RenderedEntity extends Object3D {
 
             this.makeVisible(child.children, opacity);
         })
+    }
+
+    public hasData<T>(type: new (...args: any[]) => T): this is HasData<T> {
+        return this["data"] != undefined && this["data"] instanceof type;
     }
 }
 

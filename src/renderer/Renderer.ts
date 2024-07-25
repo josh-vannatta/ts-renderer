@@ -19,7 +19,7 @@ export class Renderer {
     public delta: number;
     private animations: Array<Clip> = [];
     private animationMixers: AnimationMixer[] = [];
-    private canvas: HTMLCanvasElement
+    public canvas: HTMLCanvasElement
 
     constructor(opts = Renderer.BASIC_SETUP) {        
         this.renderer = new WebGLRenderer(opts);

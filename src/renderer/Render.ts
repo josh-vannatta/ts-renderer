@@ -1,4 +1,4 @@
-import { IsInteractive } from './RenderedEntity';
+import { IsInteractive, RenderedEntity, ObservedProperties, ViewInteractions } from './RenderedEntity';
 import * as AnimationUtils from '../utils/AnimationUtils';
 import Stats from 'stats.js';
 import { Loader } from './Loader';
@@ -6,8 +6,9 @@ import { Scene } from './Scene';
 import { Camera } from './Camera';
 import { Lighting } from './Lighting';
 import { Renderer } from './Renderer';
-import { IView, View } from './View';
+import { IView, ViewEvent as ViewEvent, View, ViewEvents } from './View';
 import { Controller } from './Controller';
+import { EventObserver, EventSource } from '../utils/EventSource';
 
 let Fonts = {};
 
@@ -26,9 +27,14 @@ export interface IRender<RenderedScene extends Scene> {
     pause(): void;
     run(): void;
     resume(): void;
-    start(): void;
+    onStart(): void;
     panCamera(pan: boolean): void;
     autoRotate(rotate: boolean): void;
+}
+
+interface EntityEventStream {
+    events: ViewEvents,
+    entity: IsInteractive
 }
 
 abstract class Render<RenderedScene extends Scene> implements IRender<RenderedScene> {
@@ -44,10 +50,12 @@ abstract class Render<RenderedScene extends Scene> implements IRender<RenderedSc
     protected lighting: Lighting;
     protected renderer: Renderer;
 
-    private activeObjects: IsInteractive[] = [];
+    private interacted: IsInteractive[] = [];
     private canvasDom: HTMLElement;
     private playCount: number = 0;
     private stats: Stats;
+    private observed: Record<string, EntityEventStream> = {}
+    private observer: EventObserver<RenderedEntity>
     public selected: IsInteractive | undefined;
     public autorotate: boolean = true;
 
@@ -56,27 +64,45 @@ abstract class Render<RenderedScene extends Scene> implements IRender<RenderedSc
         this.renderer = new Renderer();
         this.camera = new Camera();
         this.lighting = new Lighting();
-        this.view = new View();
+        this.view = new View(this.camera);
         this.scene = scene;
         this.loader.setLoaded(0, "Initializing...");
     }
+
+    private _started = false;
+    public start() {
+        if (this._started)
+            return;
+
+        this.onStart();
+        this._started = true;
+    }
+
+    private _setup = false;
+    public setup() {
+        if (this._setup)
+            return;
+        this.onSetup();
+        this._setup = true;
+    }
     
-    protected abstract setup(): void;
-    public abstract start(): void;
+    protected abstract onSetup(): void;
+    public abstract onStart(): void;
 
     public bind(canvas: HTMLElement): void {
         this.canvas = this.renderer.bind(canvas);
         this.camera.bind(this.canvas);
         this.view.bind(this.canvas);
         this.canvasDom = canvas;
+        this.initObservers();
     }
 
     public deselect() {
-        this.activeObjects = [];
+        this.interacted = [];
     }
 
     public getSelectedEntity(): IsInteractive | undefined {
-        this.selected = this.activeObjects.find(model => model.interactions.isSelected);
+        this.selected = this.interacted.find(model => model.interactions.isSelected);
 
         if (this.selected != undefined)
             return this.selected;
@@ -85,12 +111,18 @@ abstract class Render<RenderedScene extends Scene> implements IRender<RenderedSc
     }
 
     public getHoveredEntity(): IsInteractive | undefined {
-        let hovered = this.activeObjects.find(model => model.interactions.isHovered);
+        let hovered = this.interacted.find(model => model.interactions.isHovered);
 
         if (hovered != undefined)
             return hovered;
         else 
             return undefined;
+    }
+
+    public stop(): void {
+        this.scene.instance.clear();
+        this.scene.onClear();
+        this.isPaused = false;
     }
     
     public pause(): void {
@@ -102,7 +134,7 @@ abstract class Render<RenderedScene extends Scene> implements IRender<RenderedSc
         this.isPaused = false;        
         this.playCount++;   
     }
-    
+
     public resume(): void {
         this.isPaused = false;
         this.playCount++;
@@ -151,7 +183,6 @@ abstract class Render<RenderedScene extends Scene> implements IRender<RenderedSc
     }
 
     protected updateSceneData() {
-
         try {            
             this.updateControllers();
             this.scene.update(this.renderer.clock);
@@ -163,7 +194,7 @@ abstract class Render<RenderedScene extends Scene> implements IRender<RenderedSc
     private renderScene() {            
         this.renderer.update();
         this.camera.update();
-        this.view.update(this.camera);
+        this.view.update();
         this.renderer.render(this.scene, this.camera);  
     }
 
@@ -186,10 +217,10 @@ abstract class Render<RenderedScene extends Scene> implements IRender<RenderedSc
         if (this.renderer.clock.getElapsedTime() < .5) return;        
  
         this.deselect();
-        let intersects = this.view.intersect(this.scene.activeEntities, this.camera);
+        let intersects = this.view.intersect(this.scene.activeEntities);
         
-        this.activeObjects.push(...intersects);
-        this.activeObjects.sort((a, b) => {
+        this.interacted.push(...intersects);
+        this.interacted.sort((a, b) => {
             let distA = this.camera.distanceTo(a.position), 
                 distB = this.camera.distanceTo(b.position),
                 diff = b.interactions.zIndex - a.interactions.zIndex;
@@ -197,14 +228,73 @@ abstract class Render<RenderedScene extends Scene> implements IRender<RenderedSc
             return diff != 0 ? distA - distB + diff * 10000 : distA - distB;
         })
 
-        this.view.setHovered(this.activeObjects.length > 0);
+        this.view.setHovered(this.interacted.length > 0);
     }
 
     private handleSelect() {
-        this.activeObjects.forEach((model: IsInteractive) => {
-            model.onSelect(); 
-            model.interactions.selected = true;
+        this.interacted.forEach((entity: IsInteractive) => {
+            entity.onSelect(); 
+            entity.interactions.selected = true;
         })
+    }
+
+    private initObservers() {
+        let camera = new EventObserver<Camera>("Render");
+
+        camera.onUpdate(() => {
+            Object.values(this.observed).forEach(observation => {
+                observation.events.notify({
+                    entity: observation.entity,
+                    view: this.view.getScreenPosition(observation.entity)
+                })
+            })
+        })
+
+        this.camera.addObserver(camera);
+        this.observer = new EventObserver<RenderedEntity>('render');
+
+        this.observer.onUpdate(entity => {
+            if (!this.observed[entity.id])
+                return;
+
+            if (!ViewInteractions.hasInstance(entity))
+                return
+
+            this.observed[entity.id].events.notify({
+                entity,
+                view: this.view.getScreenPosition(entity)
+            })
+        })
+    }
+
+    public track<T extends IsInteractive>(entity: T | undefined) {
+        if (!entity)
+            return undefined;
+
+        if (!!this.observed[entity.id])
+            return undefined
+
+        var events = new EventSource<ViewEvent>();
+
+        entity.addObserver(this.observer);
+        
+        this.observed[entity.id] = { entity, events };
+        this.observed[entity.id].events.notify({
+            entity,
+            view: this.view.getScreenPosition(entity)
+        })
+
+        return this.observed[entity.id];
+    }
+
+    public stopTracking<T extends IsInteractive>(id: number) {
+        if (!this.observed[id])
+            return;
+
+        this.observed[id].events.clear()
+        this.observed[id].entity.removeObserver(this.observer);
+
+        delete this.observed[id]
     }
 
     protected register(...controllers: Controller[]) {
@@ -223,7 +313,7 @@ abstract class Render<RenderedScene extends Scene> implements IRender<RenderedSc
         });        
 
         const start = () => {
-            this.setup();     
+            this.onSetup();     
             this.run();                
             this.loader.setLoaded(100, 'Ready!');   
             this.view.on('mousemove', evt => this.handleHover())

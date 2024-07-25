@@ -39,11 +39,11 @@ export class Camera {
         return this.controls.target;
     }
 
-    public addObserver(observer: EventObserver) {
+    public addObserver(observer: EventObserver<Camera>) {
         this._listeners.addObserver(observer);
     }
 
-    public removeObserver(observer: EventObserver) {
+    public removeObserver(observer: EventObserver<Camera>) {
         this._listeners.removeObservers(observer.id);
     }
 
@@ -80,6 +80,8 @@ export class Camera {
 
     public enableControls() {
         this.activeControls = true;
+        this.controls.enableDamping = true;
+        this.controls.dampingFactor = 1.2;
     }
 
     public disableControls() {

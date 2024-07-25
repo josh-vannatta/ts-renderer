@@ -1,7 +1,7 @@
 import { Vector3 } from "three";
 
 export class VectorUtils {
-    public static average(...vectors: Vector3[]) {
+    public static midpoint(...vectors: Vector3[]) {
         let midpoint = new Vector3();
     
         vectors.forEach(vector => {
