@@ -2,6 +2,13 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { PerspectiveCamera, Vector3 } from 'three';
 import { EventSource, EventObserver } from '../utils/EventSource';
 
+type CameraSetup = {
+    far?: number,
+    focus?: Partial<Vector3>,
+    position?: Partial<Vector3>,
+    controls?: boolean
+}
+
 export class Camera {
     private camera: PerspectiveCamera;
     public controls: OrbitControls;
@@ -29,6 +36,20 @@ export class Camera {
         this.canvas = canvas;
         this.lastPosition = new Vector3().copy(this.position());
         this.controls = new OrbitControls(this.camera, this.canvas);
+    }
+
+    public setup(setup: CameraSetup) {
+        if (setup.far)
+            this.settings.far = 20000;
+
+        if (setup.focus)
+            this.camera.lookAt(new Vector3(setup.focus.x, setup.focus.y, setup.focus.z));
+
+        if (setup.position)
+            this.camera.position.copy(new Vector3(setup.position.x, setup.position.y, setup.position.z))
+
+        if (setup.controls)
+            this.enableControls(); 
     }
 
     public get settings() {
@@ -81,7 +102,7 @@ export class Camera {
     public enableControls() {
         this.activeControls = true;
         this.controls.enableDamping = true;
-        this.controls.dampingFactor = 1.2;
+        this.controls.dampingFactor = 0.1;
     }
 
     public disableControls() {

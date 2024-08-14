@@ -57,23 +57,6 @@ export const Trackable: FunctionComponent<Props> = props => {
         }
     }, [ props.entity ])
 
-    // const handleUpdatePins = () => {
-    //     if (!menuState.visibility.pins)
-    //         return;    
-
-    //     pins.forEach(pin => pin.observer?.update(undefined)); 
-    // };   
-
-    // const handleSelect = (pin: PinnedEntity) => {
-    //     menuState.contextEntity = pin.entity;
-    //     menuActions.openPropertiesMenu();
-    // }
-
-    // const handleClose = (pin: PinnedEntity) => {
-    //     delete pins[pin.entity.id]
-    //     setPins({...pins})
-    // }
-
     if (!pin || !pin.entity || !props.visible)
         return;
     

@@ -17,7 +17,7 @@ export class Scene {
         return this._scene;
     }
 
-    public onClear() {}
+    public reset() {}
 
     public add(...objects: Object3D[]) {
         this._scene.add(...objects);

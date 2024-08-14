@@ -57,7 +57,7 @@ abstract class Render<RenderedScene extends Scene> implements IRender<RenderedSc
     private observed: Record<string, EntityEventStream> = {}
     private observer: EventObserver<RenderedEntity>
     public selected: IsInteractive | undefined;
-    public autorotate: boolean = true;
+    public autorotate: boolean = false;
 
     constructor(scene: RenderedScene) {
         this.loader = new Loader();
@@ -89,12 +89,16 @@ abstract class Render<RenderedScene extends Scene> implements IRender<RenderedSc
     protected abstract onSetup(): void;
     public abstract onStart(): void;
 
+    public unbind(canvas: HTMLElement) {
+        this.renderer.unbind(canvas);
+    }
+
     public bind(canvas: HTMLElement): void {
         this.canvas = this.renderer.bind(canvas);
         this.camera.bind(this.canvas);
         this.view.bind(this.canvas);
         this.canvasDom = canvas;
-        this.initObservers();
+        this.initObservers();        
     }
 
     public deselect() {
@@ -121,7 +125,7 @@ abstract class Render<RenderedScene extends Scene> implements IRender<RenderedSc
 
     public stop(): void {
         this.scene.instance.clear();
-        this.scene.onClear();
+        this.scene.reset();
         this.isPaused = false;
     }
     
@@ -153,28 +157,41 @@ abstract class Render<RenderedScene extends Scene> implements IRender<RenderedSc
         }
     }
 
-    protected renderAnimation() {       
-        if (this.isPaused || !this.loader.isLoaded) 
-            return;
+    private _onContextLoss = () => {}
 
-        requestAnimationFrame(() => this.renderAnimation());
+    public onContextLoss(callback: () => void) {
+        this._onContextLoss = callback;
+    }
 
-        if (this.stats)
-            this.stats.begin();       
+    protected renderAnimation() {     
+        this.renderer.webGl.setAnimationLoop(() => {
+            if (this.renderer.webGl.getContext().isContextLost()) {
+                this._onContextLoss();
+                console.log(this.renderer.webGl.getContext().drawingBufferHeight)
+                return;
+            }
+
+            if (this.isPaused || !this.loader.isLoaded) {
+                return;
+            }
+    
+            if (this.stats)
+                this.stats.begin();       
+                
+            this.updateSceneData();
+            this.onUpdate();
+            AnimationUtils.update(); 
+            this.renderScene();   
             
-        this.updateSceneData();
-        this.onUpdate();
-        AnimationUtils.update(); 
-        this.renderScene();   
-        
-        if (this.panTimeout <= 0) {
-            this.camera.controls.autoRotate = !this.selected && this.autorotate;
-        } else {
-            this.panTimeout--;
-        }
-
-        if (this.stats)
-            this.stats.end();
+            if (this.panTimeout <= 0) {
+                this.camera.controls.autoRotate = !this.selected && this.autorotate;
+            } else {
+                this.panTimeout--;
+            }
+    
+            if (this.stats)
+                this.stats.end();
+        })
     }
 
     protected renderFrame() {
@@ -191,7 +208,7 @@ abstract class Render<RenderedScene extends Scene> implements IRender<RenderedSc
         }
     }
 
-    private renderScene() {            
+    private renderScene() {
         this.renderer.update();
         this.camera.update();
         this.view.update();
@@ -314,6 +331,7 @@ abstract class Render<RenderedScene extends Scene> implements IRender<RenderedSc
 
         const start = () => {
             this.onSetup();     
+            this.scene.light(this.lighting);        
             this.run();                
             this.loader.setLoaded(100, 'Ready!');   
             this.view.on('mousemove', evt => this.handleHover())
@@ -342,8 +360,8 @@ abstract class Render<RenderedScene extends Scene> implements IRender<RenderedSc
         this.camera.controls.autoRotate = pan && this.autorotate;   
     }
 
-    public autoRotate(rotate: boolean): void {        
-        this.autorotate = rotate;
+    public autoRotate(rotate?: boolean): void {        
+        this.autorotate = rotate ?? true;
     }
 }
 

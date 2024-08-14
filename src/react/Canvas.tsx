@@ -6,7 +6,7 @@ import { EventSource } from '../utils/EventSource';
 import { ViewEvent, ViewEvents } from '../renderer/View';
 
 interface Props extends PropsWithChildren {
-    render: Render<Scene>,
+    render: () => Render<Scene>,
     onSelect?: (entity: IsInteractive | undefined) => void
 }
 
@@ -32,21 +32,27 @@ const initialContext: IRenderContext = {
     tracked: {}
 }
 
+const renders: Record<number, Render<Scene>> = {
+
+}
+
 export const RenderContext = React.createContext<IRenderContext>(initialContext)
 
-const RenderCanvas : FunctionComponent<Props> = props => {
+const Canvas : FunctionComponent<Props> = props => {
     const canvasEl = React.useRef<HTMLDivElement>(null);
     const [ loading, setLoading] = React.useState<LoadingState>(initialContext.loading);
     const [ tracked, setTracked ] = React.useState<Record<string, EventSource<ViewEvent>>>({})
+    const [ id ] = React.useState(Date.now())
 
     // Bind canvas to render instance 
     React.useEffect(() => {       
-        if (!canvasEl.current || !props.render || props.render.isPaused)
+        if (!canvasEl.current || !props.render)
             return;        
 
-        props.render.bind(canvasEl.current);
-        props.render.start();
-        props.render.loader.onLoad((percent, message) => {
+        renders[id] = props.render();
+        renders[id].bind(canvasEl.current);
+        renders[id].start();
+        renders[id].loader.onLoad((percent, message) => {
             setLoading({    
                 ...loading,        
                 percent: percent,
@@ -56,22 +62,26 @@ const RenderCanvas : FunctionComponent<Props> = props => {
         })
 
         return () => {
-            props.render.stop();
-            canvasEl.current?.removeChild(props.render.canvas)
+            if (canvasEl.current)
+                renders[id].unbind(canvasEl.current)
+                
+            renders[id].stop();
+            canvasEl.current?.removeChild(renders[id].canvas)
+            delete renders[id]
         }
     }, [ props.render ]);
 
     if (!props.render)
-        return (<div id="render-view" />);
+        return (<div id={"render-view-" + id}/>);
 
     const handleClick = () => {
-        const selected = props.render.getSelectedEntity();
+        const selected = renders[id].getSelectedEntity();
 
         props.onSelect?.(selected);
-        props.render.deselect();
+        renders[id].deselect();
 
         if (selected) {
-            let eventSource = props.render.track(selected);
+            let eventSource = renders[id].track(selected);
 
             if (!eventSource)
                 return;
@@ -82,26 +92,26 @@ const RenderCanvas : FunctionComponent<Props> = props => {
         }
     }          
 
-    const stopTracking = (id: number) => {
-        props.render.stopTracking(id)
+    const stopTracking = (entity: number) => {
+        renders[id].stopTracking(entity)
 
-        if (!tracked[id])
+        if (!tracked[entity])
             return;
 
-        delete tracked[id]
+        delete tracked[entity]
 
         setTracked({ ...tracked })
     }
 
     const handleMouseMove = () => {
-        props.render.panCamera(false);
+        renders[id].panCamera(false);
     }
 
     return (
         <RenderContext.Provider value={{loading, tracked, stopTracking }}>
             <section style={{ display: "block", overflow: "hidden"}}>  
                 { props.children }
-                <div id="render-view" ref={canvasEl}
+                <div id={"render-view-" + id} ref={canvasEl}
                     onMouseMove={handleMouseMove}
                     onClick={handleClick}>
                 </div>
@@ -110,6 +120,6 @@ const RenderCanvas : FunctionComponent<Props> = props => {
     );
 }
 
-const MemoizedViewer = React.memo(RenderCanvas);
+const MemoizedViewer = React.memo(Canvas);
 
-export { MemoizedViewer as RenderCanvas };
+export { MemoizedViewer as Canvas };

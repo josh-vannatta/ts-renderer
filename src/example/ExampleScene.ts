@@ -8,7 +8,7 @@ export class ExampleScene extends Scene {
     lines: Line[] = [];
     points: Point[] = [];
 
-    public override onClear(): void {
+    public override reset(): void {
         this.lines = []
         this.points = []
     }

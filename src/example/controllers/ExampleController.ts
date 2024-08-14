@@ -1,12 +1,20 @@
+import { BoxGeometry } from 'three';
 import { Emission } from '../../connections/Emission';
 import { Controller } from '../../renderer/Controller';
-import { VectorUtils } from '../../utils/VectorUtils';
+import { CoordinateSpace } from '../../utils/CoordinateSpace';
+import { InstanceCollection } from '../../utils/Instancing';
+import { State } from '../../utils/StateUtils';
 import { PointData } from '../ExampleApp';
 import { ExampleScene } from '../ExampleScene';
 import { Atom } from '../entities/Atom';
 import { Background, BackgroundSize } from '../entities/Background';
-import { Line } from '../entities/Line';
-import { Point } from '../entities/Point';
+
+class SpaceState extends State {
+    duration = 2000;
+    updates = {
+        scale: { x: 2, y: 2, z: 2}
+    }
+}
 
 export class ExampleController extends Controller {
     constructor(
@@ -17,28 +25,16 @@ export class ExampleController extends Controller {
     public setup() { }
 
     public onInit() { 
+        const s = 30
+        const space = new CoordinateSpace(new BoxGeometry(s,s,s,s,s,s))
+        const points = space.generate(() => new Atom())
+        const instances = new InstanceCollection(points, Atom.Instance);
+
         this._scene.background = new Background(BackgroundSize.Moderate, 10);
 
-        this._data.forEach(data => {
-            const point = new Point(data);
+        this._scene.addEntities(this._scene.background, space, instances);
 
-            point.position.copy(VectorUtils.random(20));
-            this._scene.points.push(point);
-        })
-
-        this._scene.points.forEach(point => {
-            point.data.connected.forEach(el => {
-                const line = new Line([  point, this._scene.points[el] ])
-
-                this._scene.lines.push(line);
-            })
-        })
-
-        this._scene.addEntities(
-            this._scene.background, 
-            ...this._scene.points, 
-            ...this._scene.lines
-        );
+        space.state.set(new SpaceState())
     }
 
     protected onUpdate(): void {

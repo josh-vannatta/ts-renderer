@@ -1,24 +1,19 @@
 import { HemisphereLight, DirectionalLight, AmbientLight, Light} from 'three';
 
 export class Lighting {
-    public readonly BASIC = 'basic';
     public lights: Light[] = [];
 
     constructor() {}
 
-    public configure(setting): void {
-        switch (setting) {
-            case this.BASIC:
-                this.basicLights();
-                break;
-        }
+    public setup(lights: Light[]) {
+        this.lights = lights;
     }
 
     public addLight(light: Light) {
         this.lights.push(light);
     }
 
-    protected basicLights() {        
+    public static get Basic() {        
         const hemisphereLight = new HemisphereLight(0Xaaaaaa, 0X000000, .8);
         const shadowLight = new DirectionalLight(0xffffff, .8);
         const ambientLight = new AmbientLight(0xebf6ff, .5);
@@ -34,7 +29,7 @@ export class Lighting {
         shadowLight.shadow.mapSize.width = 2048;
         shadowLight.shadow.mapSize.height = 2048;
 
-        this.lights = [
+        return[
             hemisphereLight,
             shadowLight,
             ambientLight

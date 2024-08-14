@@ -12,6 +12,7 @@ export class Renderer {
         alpha: true, 
         antialias: true,
         gammaInput: true,
+        powerPreference: "high-performance",
         gammaOutput: true 
     }
     private renderer: WebGLRenderer;
@@ -20,6 +21,7 @@ export class Renderer {
     private animations: Array<Clip> = [];
     private animationMixers: AnimationMixer[] = [];
     public canvas: HTMLCanvasElement
+    public parent: HTMLElement;
 
     constructor(opts = Renderer.BASIC_SETUP) {        
         this.renderer = new WebGLRenderer(opts);
@@ -29,10 +31,19 @@ export class Renderer {
         this.delta = 0;
     }
 
+    private resetting = false;
+
+    public unbind(element: HTMLElement) {
+        try {
+            element.removeChild(element);
+
+        } catch {}
+    }
+
     public bind(element: HTMLElement) {
         element.appendChild( this.canvas );
         
-        this.canvas = this.canvas;
+        this.parent = element;
         this.canvas.style.minHeight = '100%';
         this.canvas.style.minWidth = '100%';
         this.canvas.style.transition = '0s';
@@ -68,6 +79,7 @@ export class Renderer {
     // }
     
     public render(scene: Scene, camera: Camera): void {
+        this.resetting = false;
         this.delta = this.clock.getDelta();
         this.animations.forEach((clip: Clip)=>
             this.animationMixers[clip.mixer].clipAction(clip.animation).play());

@@ -1,5 +1,5 @@
-import {  Color, Group, Vector3 } from 'three';
-import { Font, FontLoader, GLTF, GLTFLoader } from 'three/examples/jsm/Addons.js';
+import {  Color, Group, Object3D, Vector3 } from 'three';
+import { Font, FontLoader, GLTF, GLTFLoader, SkeletonUtils } from 'three/examples/jsm/Addons.js';
 import { AssetRecord } from '../utils/AssetRegister';
 import { MeshUtils } from '../utils/MeshUtils';
 
@@ -10,9 +10,11 @@ export interface AssetOptions {
     color?: string
 }
 
+export type LoadedEntity = Object3D | undefined
+
 interface AssetOptionRecord { [asset: string]: AssetOptions }
 
-export class LoadedAssets {
+export class AssetLoader {
     public static compiled: {
         [asset: string]: Group
     } = {};
@@ -24,7 +26,7 @@ export class LoadedAssets {
     constructor(public localAssets: AssetRecord = {}) { 
         this.load(localAssets);
         
-        LoadedAssets.globalAssets.forEach(assets => {
+        AssetLoader.globalAssets.forEach(assets => {
             Object.keys(assets).forEach(asset => {
                 if (localAssets[asset])
                     return;
@@ -40,7 +42,7 @@ export class LoadedAssets {
     }
 
     public static build(assets: AssetRecord = {}) {
-        const instance = new LoadedAssets();
+        const instance = new AssetLoader();
 
         instance.load(assets);
 
@@ -64,13 +66,13 @@ export class LoadedAssets {
         return new Vector3(vector.x, vector.y, vector.z);
     }
 
-    public getAsset(asset: string) {
+    public get(asset: string): LoadedEntity {
         const location = this.localAssets[asset]?.location;
 
         if (location) {
-            const clone = LoadedAssets.compiled[location].clone();
+            const clone = SkeletonUtils.clone(AssetLoader.compiled[location]);
 
-            clone["color"] = LoadedAssets.compiled[location]["color"];
+            clone["color"] = AssetLoader.compiled[location]["color"];
 
             return clone;
         }
@@ -82,13 +84,13 @@ export class LoadedAssets {
             ...options
         };
 
-        if (LoadedAssets.requestedAssets.includes(location))
+        if (AssetLoader.requestedAssets.includes(location))
             return;
 
-        LoadedAssets.requestedAssets.push(location);22
+        AssetLoader.requestedAssets.push(location);22
 
         if (options)
-            LoadedAssets.options[location] = {
+            AssetLoader.options[location] = {
                 position: new Vector3(
                     options.position?.x ?? 0, 
                     options.position?.y ?? 0,
@@ -104,12 +106,11 @@ export class LoadedAssets {
     }
 
     public static register(asset: string, scene: Group) {
-        LoadedAssets.compiled[asset] = scene;
+        AssetLoader.compiled[asset] = scene;
     }
 }
 
 export interface HasLoadedAssets {
-    loadedAssets: LoadedAssets;
     onLoad(): void;
 }
 
@@ -138,15 +139,15 @@ export class Loader {
         );        
     }
 
-    private static loadInstance: LoadedAssets = new LoadedAssets();
+    private static loadInstance: AssetLoader = new AssetLoader();
 
-    public static register(assets: AssetRecord) {
+    public static load(assets: AssetRecord) {
         this.loadInstance.load(assets);
-        LoadedAssets.globalAssets.push(assets)
+        AssetLoader.globalAssets.push(assets)
     }
 
     public static hasLoadedAssets(object: any): object is HasLoadedAssets {
-        if (!!object && !!object.loadedAssets)
+        if (!!object && typeof object.onLoad === "function")
             return true;
     
         return false;
@@ -157,14 +158,16 @@ export class Loader {
         const loader = new GLTFLoader();         
 
         return new Promise((resolve, reject) => {
-            if (LoadedAssets.requestedAssets.length == 0) 
+            if (AssetLoader.requestedAssets.length == 0) 
                 resolve(true);        
                 
             let percent = 0;
         
             const handleSuccess = (asset: string) => (loadedAsset: GLTF) => {                         
-                const options = LoadedAssets.options[asset];
+                const options = AssetLoader.options[asset];
                 const scene = loadedAsset.scene;
+
+                scene.animations = loadedAsset.animations;
                 
                 if (options) {
                     let rotation = options.rotation ?? 0;
@@ -180,8 +183,8 @@ export class Loader {
                 }                
                 
                 modelsLoaded++;
-                LoadedAssets.register(asset, scene);                     
-                percent = Math.ceil(modelsLoaded / LoadedAssets.requestedAssets.length * 100);   
+                AssetLoader.register(asset, scene);                     
+                percent = Math.ceil(modelsLoaded / AssetLoader.requestedAssets.length * 100);   
                 
                 this.setLoaded(percent, `Loading asset for [${asset}]`);     
 
@@ -196,10 +199,10 @@ export class Loader {
                 this.setLoaded(percent, `Error: Asset "${asset}" ${error.currentTarget?.statusText.toLowerCase()}`);
             }
 
-            LoadedAssets.requestedAssets.forEach(asset => {
+            AssetLoader.requestedAssets.forEach(asset => {
                 if (asset == "" || !asset){
                     modelsLoaded++;
-                    percent = Math.ceil(modelsLoaded / LoadedAssets.requestedAssets.length * 100);  
+                    percent = Math.ceil(modelsLoaded / AssetLoader.requestedAssets.length * 100);  
                     console.warn(`Warning: Asset "${asset}" is invalid`);
                     return;
                 }

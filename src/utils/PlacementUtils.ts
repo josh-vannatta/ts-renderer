@@ -96,7 +96,7 @@ export function pointsOnPlane(settings: PlaneSettings, callback?: PlaneCallback)
             if (x == range.max.x && y == range.max.y)
                 range.max.index = index;
 
-            index++;    
+            index++;
 
             if (callback) {
                 callback(new Vector3(                                              

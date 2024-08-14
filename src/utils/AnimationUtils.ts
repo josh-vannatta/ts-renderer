@@ -38,7 +38,7 @@ function deflate(source, path: any[] = [], result = {}){
     return result;
 };
 
-export function mutate(entity, finalState, time) {
+export function animate(entity, finalState, time) {
     let start = stripEntityForProps(entity, finalState);  
     let deflateStart = deflate(start);
     let deflateEnd = deflate(finalState);

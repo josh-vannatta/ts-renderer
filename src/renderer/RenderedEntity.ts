@@ -1,6 +1,9 @@
-import { Vector3, Euler, Quaternion, Object3D, Clock, Intersection } from "three";
+import { Vector3, Euler, Quaternion, Object3D, Clock, Intersection, AnimationMixer, AnimationObjectGroup, AnimationAction, LoopRepeat } from "three";
 import { StateMachine } from "../utils/StateUtils";
 import { EventSource, EventObserver } from "../utils/EventSource";
+import { AssetLoader } from "./Loader";
+
+export type Animations = Record<string, AnimationAction>;
 
 export interface ObservedProperties {
     position?: Vector3;
@@ -18,19 +21,26 @@ export interface HasData<T> {
 export abstract class RenderedEntity extends Object3D {
     public state: StateMachine;
     readonly active: boolean = false;
+    public loader: AssetLoader;
+    public interactions: ViewInteractions = new ViewInteractions();
     private _childEntites: RenderedEntity[];
     private _listeners: EventSource<RenderedEntity>;
     private _lastState: ObservedProperties;
     private _additionHandlers: EntityCallback<void>[];
+    private _animations: Record<string, Animations>;
+    private _mixers: Record<string, AnimationMixer>;
     public isCreated: boolean;
 
     constructor() {
         super();
         this.state = new StateMachine(this);
+        this.loader = new AssetLoader();
         this._childEntites = [];
         this._additionHandlers = [];
         this._listeners = new EventSource<RenderedEntity>();
         this.isCreated = false;
+        this._animations = {};
+        this._mixers = {}
     }
     
     // Lifecycle methods
@@ -45,6 +55,9 @@ export abstract class RenderedEntity extends Object3D {
         this.state.update();
         this.updateListeners(() => this._listeners.notify(this));
         this.onUpdate(clock);
+
+        Object.values(this._mixers).forEach(mixer => 
+            mixer.update(clock?.getDelta() ?? 0));
         
         this._childEntites.forEach(child => {
             child.update(clock);
@@ -52,6 +65,72 @@ export abstract class RenderedEntity extends Object3D {
         });
 
         this.afterUpdate();
+    }
+
+    public rigAnimations(root: Object3D = this): Animations {
+        if (this._animations[root.uuid]){
+            delete this._animations[root.uuid];
+            delete this._mixers[root.uuid]
+        }
+
+        const mixer = new AnimationMixer(root);
+
+        this._mixers[root.uuid] = mixer;
+        this._animations[root.uuid] = {}
+            
+        for (let i = 0; i < root.animations.length; i++) {
+            const animation = root.animations[i];
+            const action = mixer.clipAction(animation);
+
+            this._animations[root.uuid][animation.name] = action;
+            action.loop = LoopRepeat;
+            action.clampWhenFinished = true;
+        }
+
+        return this._animations[root.uuid];
+    }
+
+    public override add(...object: (Object3D | undefined)[]) {
+        if (object.length == 0)
+            return this;
+
+        object.forEach(instance => {
+            if (!!instance)
+                super.add(instance)
+        });
+
+        return this;
+    }
+
+    public animate(root?: Object3D | string, action?: string): AnimationAction | undefined {
+        if (!root)
+            return undefined;
+
+        if (typeof root == "string")
+            return this.initAnimate(this.uuid, this._animations[this.uuid]?.[root])
+
+        if (!this._animations[root.uuid])
+            this.rigAnimations(root)
+
+        if (action != undefined)
+            return this.initAnimate(root.uuid, this._animations[root.uuid]?.[action]);
+    }
+    
+    private initAnimate(id: string, animation: AnimationAction | undefined) {
+        if (!animation)
+            return;
+
+        Object.values(this._animations[id]).map(a => a.fadeOut(.5))
+
+        return animation.reset().fadeIn(.5).play();
+    }
+
+    public override copy(object: Object3D, recursive: boolean = true): this {
+        super.copy(object, recursive);
+        this.animations = this.animations;
+        this.rigAnimations();
+        
+        return this;
     }
 
     public onAdd(callback: EntityCallback<void>) {
@@ -251,7 +330,12 @@ export class ViewInteractions {
     }
 
     public static hasInstance(object: any): object is IsInteractive {
-        return object.interactions?.hasInteractions;
+        return (
+            object.interactions != undefined &&
+            typeof object.onHover === "function" &&
+            typeof object.onReset === "function" &&
+            typeof object.onHover === "function" 
+        );
     }
 }
 

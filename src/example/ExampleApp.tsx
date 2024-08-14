@@ -1,10 +1,9 @@
 import React, { FC } from "react";
-import { RenderCanvas } from "../react/RenderCanvas";
+import { Canvas } from "../react/Canvas";
 import { ExampleRender } from "./ExampleRender";
 import { PinMenu } from "./menus/PinMenu";
 
 interface Props {
-
 }
 
 export enum PointStatus {
@@ -14,44 +13,27 @@ export enum PointStatus {
 }
 
 export class PointData {
+    public id: number
+    public status: PointStatus = PointStatus.Off;
+
     constructor (
-        public id: number,
-        public status: PointStatus,
         public connected: number[] = []
     ) {}
+
+    public update() {
+        this.status = 
+            this.status == PointStatus.Off ? PointStatus.On : 
+            this.status == PointStatus.Disabled ? PointStatus.Off :
+            this.status == PointStatus.On ? PointStatus.Disabled :
+            PointStatus.On 
+    }
 }
 
 export const ExampleApp: FC<Props> = props => {
-    const [ points, setPoints ] = React.useState([
-        new PointData(0, PointStatus.On, [ 1 ]),
-        new PointData(1, PointStatus.Off),
-    ])
-    const [ render, setRender ] = React.useState(new ExampleRender(points));
-
-    React.useEffect(() => {
-        const getStatus = (status: PointStatus) => (
-            status == PointStatus.Off ? PointStatus.On : 
-            status == PointStatus.Disabled ? PointStatus.On :
-            PointStatus.Disabled
-        )
-
-        const a = setInterval(() => {
-            points[0].status = getStatus(points[0].status);
-            points[1].status = getStatus(points[1].status);
-            setPoints([ ...points ])
-        }, 1000)
-
-        return () => {
-            clearInterval(a)
-        }
-    }, [ ]);
-    
-    if (!render)
-        return <></>
 
     return (
-        <RenderCanvas render={render} onSelect={e => {}}>
+        <Canvas render={() => new ExampleRender([])} onSelect={e => {}}>
             <PinMenu />
-        </RenderCanvas>
+        </Canvas>
     );
 }

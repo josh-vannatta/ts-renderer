@@ -1,3 +1,4 @@
+import { Lighting } from "../renderer/Lighting";
 import { IRender, Render } from "../renderer/Render";
 import { ExampleController } from "./controllers/ExampleController";
 import { PointData } from "./ExampleApp";
@@ -8,7 +9,6 @@ export interface IExampleRender extends IRender<ExampleScene> {
 }
 
 export class ExampleRender extends Render<ExampleScene> implements IExampleRender {
-    public id = Math.random() * 1000
     public controller: ExampleController;
 
     constructor(points: PointData[]) {
@@ -17,14 +17,13 @@ export class ExampleRender extends Render<ExampleScene> implements IExampleRende
     }
 
     protected onSetup(): void {
-        this.camera.settings.far = 20000;
-        this.camera.lookAt({x: 0, y: 2, z: 0});
-        this.camera.setPosition({x: -50, y: 0, z: -50}); 
-        this.camera.enableControls(); 
-        this.lighting.configure(this.lighting.BASIC);
-        this.scene.light(this.lighting);        
-
-        this.autoRotate(false)
+        this.camera.setup({
+            far: 20000,
+            focus: {x: 0, y: 2, z: 0},
+            position: {x: -50, y: 0, z: -50},
+            controls: true
+        })
+        this.lighting.setup(Lighting.Basic);
     }
 
     public onStart(): void {

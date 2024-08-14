@@ -1,5 +1,5 @@
 import { RenderedEntity } from '../renderer/RenderedEntity';
-import { mutate } from './AnimationUtils';
+import { animate } from './AnimationUtils';
 import { Linear } from './Easing';
 
 function overwriteObject(x, y) {
@@ -165,7 +165,7 @@ export class StateMachine {
         this._animations.forEach(animation => animation.stop())
         this._animations = [];      
 
-        let animation = mutate(this.entity, state.updates, duration)
+        let animation = animate(this.entity, state.updates, duration)
             .easing(state.easing)
             .onComplete(()=> { 
                 state.finished = true; 

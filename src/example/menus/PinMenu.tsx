@@ -1,5 +1,5 @@
 import React, { FunctionComponent } from 'react';
-import { RenderContext } from '../../react/RenderCanvas';
+import { RenderContext } from '../../react/Canvas';
 import { Point } from '../entities/Point';
 import { Trackable } from '../../react/Trackable';
 
@@ -8,17 +8,6 @@ interface Props {
 
 export const PinMenu: FunctionComponent<Props> = props => {
     const render = React.useContext(RenderContext);
-    const [ visible, setVisible ] = React.useState<Record<number, boolean>>({})
-
-    React.useEffect(() => {
-        Object.keys(render.tracked).map(id => {
-            if (!visible[id])
-                return;
-
-            visible[id]
-        })
-    }, [ render.tracked ])
-
     const pinStyles = { 
         background: "#444", 
         padding: "4px 12px", 
@@ -37,12 +26,6 @@ export const PinMenu: FunctionComponent<Props> = props => {
             <span onClick={() => handleClose(id)}>X</span>
         </div>
     )
-    
-    const Menu = () => (
-        <div style={pinStyles}>
-            Some Other Menu
-        </div>
-    )
 
     return (
         <div style={{ position: 'relative' }}>
@@ -51,15 +34,9 @@ export const PinMenu: FunctionComponent<Props> = props => {
                     key={id} 
                     visible
                     entity={render.tracked[id]}
-                    render={(e: Point)=> (
-                        <div>
-                            <Pin e={e} id ={id} /> 
-                            <Menu />
-                        </div>
-                    )}
+                    render={(e: Point)=> <Pin e={e} id={id} />}
                 />
-            )}
-            
+            )}            
         </div>
     );
 }
