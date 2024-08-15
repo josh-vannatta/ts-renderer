@@ -224,7 +224,7 @@ abstract class Render<RenderedScene extends Scene> implements IRender<RenderedSc
                 );
             }
             controller.animations = [];
-            controller.update();
+            controller.update(this.renderer.clock);
         });
     }  
     
@@ -274,7 +274,7 @@ abstract class Render<RenderedScene extends Scene> implements IRender<RenderedSc
             if (!this.observed[entity.id])
                 return;
 
-            if (!ViewInteractions.hasInstance(entity))
+            if (!ViewInteractions.isInteractive(entity))
                 return
 
             this.observed[entity.id].events.notify({
@@ -323,7 +323,10 @@ abstract class Render<RenderedScene extends Scene> implements IRender<RenderedSc
         return this;
     }
 
-    protected initialize() {
+    protected initialize(...controllers: Controller[]) {
+        if (controllers.length)
+            this.register(...controllers)
+
         this.controllers.forEach(controller => {          
             controller.setup();            
             controller.load(this);  

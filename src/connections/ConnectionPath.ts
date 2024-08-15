@@ -1,9 +1,10 @@
 import { ArrayUtils } from "../utils/ArrayUtils";
 import { Curve, Vector3 } from "three";
-import { HasPosition, Connection } from "./Connection";
+// import { HasPosition, Connection } from "./Connection";
 import { Emission } from "./Emission";
+import { HasPosition, Path } from "./Path";
 
-export interface AnyConnection extends Connection<Curve<Vector3>> {}
+export interface AnyConnection extends Path<Curve<Vector3>> {}
 
 class Edge {
     constructor(
@@ -58,10 +59,11 @@ export class ConnectionPath {
     private path: Set<Edge>[][];
     public biased: boolean = true;
 
-    constructor() {
+    constructor(...connections: AnyConnection[]) {
         this.edges = [];
         this.nodes = {};
         this.path = [];
+        this.build(...connections);
     }
 
     public add(...connections: AnyConnection[]) {
@@ -155,10 +157,10 @@ export class ConnectionPath {
         if (!end)
             return start.edges.filter(e => !previous.includes(e));
 
-        let edges = this.path[start.index][end.index];      
+        let edges = this.path[start.index]?.[end.index];      
         let nextEdge: Edge | undefined;
 
-        edges.forEach(edge => {
+        edges?.forEach(edge => {
             if (edge.includes(start)) { 
                 nextEdge = edge;
             }
@@ -191,6 +193,11 @@ export class ConnectionPath {
         this.path[index] = [];
 
         return node;
+    }
+
+    public build(...connections: AnyConnection[]) {
+        this.add(...connections)
+        this.rebuild();
     }
 
     public rebuild() {        

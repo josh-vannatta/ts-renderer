@@ -1,25 +1,25 @@
-import { Clock, MeshToonMaterial, SphereGeometry, Vector3 } from "three";
+import { Clock, Color, MeshToonMaterial, SphereGeometry, Vector3 } from "three";
 import { IsInteractive, RenderedEntity, ViewInteractions } from "../../renderer/RenderedEntity";
 import { InstancedEntity, Instance } from "../../utils/Instancing";
 import { PointData } from "../ExampleApp";
 import { State } from "../../utils/StateUtils";
 
 class BaseState extends State {
-    duration =  500
+    duration =  300
     updates = {
         scale: { x: 1, y: 1, z: 1},
         instance: {
-            color: { r: 0, g: 200, b: 210 }
+            color: new Color("rgb(0,200,210)")
         }
     }
 }
 
 class HoverState extends State {
-    duration =  500
+    duration =  100
     updates = {
         scale: { x: 2, y: 2, z: 2},
         instance: {
-            color: { r: 200, g: 0, b: 0 }
+            color: new Color("rgb(255,200,200)")
         }
     }
 }

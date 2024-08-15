@@ -165,7 +165,7 @@ export class View implements IView {
                 
                 var intersected = entity.getHoveredInstance(intersections);
 
-                if (intersected && ViewInteractions.hasInstance(intersected))
+                if (intersected && ViewInteractions.isInteractive(intersected))
                     entity = intersected;
             }
 

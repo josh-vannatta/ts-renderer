@@ -157,7 +157,7 @@ export abstract class RenderedEntity extends Object3D {
         this._childEntites = this._childEntites.filter(child => {
             const removed = entities.find(entity => entity.uuid == child.uuid);
 
-            if (removed && ViewInteractions.hasInstance(child))
+            if (removed && ViewInteractions.isInteractive(child))
                 child.interactions.active = false;
 
             if (removed) {
@@ -279,6 +279,18 @@ export abstract class RenderedEntity extends Object3D {
     public hasData<T>(type: new (...args: any[]) => T): this is HasData<T> {
         return this["data"] != undefined && this["data"] instanceof type;
     }
+    
+
+    public static isRenderedEntity(object: any): object is IsInteractive {
+        return (
+            object.state != undefined &&
+            typeof object.onCreate === "function" &&
+            typeof object.beforeUpdate === "function" &&
+            typeof object.onUpdate === "function" &&
+            typeof object.afterUpdate === "function" &&
+            typeof object.onDestroy === "function" 
+        );
+    }
 }
 
 export class ViewInteractions {    
@@ -329,12 +341,12 @@ export class ViewInteractions {
         this._cameraDistance = distance;
     }
 
-    public static hasInstance(object: any): object is IsInteractive {
+    public static isInteractive(object: any): object is IsInteractive {
         return (
             object.interactions != undefined &&
             typeof object.onHover === "function" &&
             typeof object.onReset === "function" &&
-            typeof object.onHover === "function" 
+            typeof object.onSelect === "function" 
         );
     }
 }

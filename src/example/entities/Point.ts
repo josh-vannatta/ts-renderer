@@ -51,6 +51,7 @@ export class Point extends RenderedEntity implements IsInteractive, HasLoadedAss
         )
 
         this.add(this.model)
+        this.state.set(new BaseState)
     }
 
     public onLoad(): void { }

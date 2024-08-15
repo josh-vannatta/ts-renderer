@@ -91,7 +91,7 @@ export class InstanceCollection extends RenderedEntity implements IsInteractive 
 
     public onReset() {       
         this.renderedEntities.forEach(entity => {
-            if (ViewInteractions.hasInstance(entity))
+            if (ViewInteractions.isInteractive(entity))
                 entity.onReset();
         })
     }

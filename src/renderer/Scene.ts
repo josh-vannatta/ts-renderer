@@ -19,20 +19,12 @@ export class Scene {
 
     public reset() {}
 
-    public add(...objects: Object3D[]) {
-        this._scene.add(...objects);
-    }
-
-    public remove(...objects: Object3D[]) {
-        this._scene.remove(...objects);
-    }
-    
     public light(lighting: Lighting) {
         lighting.lights.forEach(light => this._scene.add(light));
     }
 
     private activate(entity: RenderedEntity) {                    
-        if (ViewInteractions.hasInstance(entity) &&
+        if (ViewInteractions.isInteractive(entity) &&
             !this.activeEntities.includes(entity))    
             this.activeEntities.push(entity);
 
@@ -46,7 +38,7 @@ export class Scene {
     }
 
     private deactivate(entity: RenderedEntity, deactivated: Set<IsInteractive>) {
-        if (ViewInteractions.hasInstance(entity))    
+        if (ViewInteractions.isInteractive(entity))    
             deactivated.add(entity);
 
         // if (RenderedInstances.isInstance(entity))
@@ -68,8 +60,15 @@ export class Scene {
         entity.onAdd(addition => this.activate(addition));
     }
 
-    public addEntities(...entities: (RenderedEntity | IsInteractive | undefined)[]) {
-        entities.forEach(entity => entity ? this.addEntity(entity) : null);
+    public add(...objects: (Object3D | RenderedEntity | IsInteractive)[]) {
+        objects.forEach(object => {
+            if (RenderedEntity.isRenderedEntity(object))
+                return this.addEntity(object)
+
+            this._scene.add(object);
+        })
+
+        return this;
     }
 
     public removeEntity(entity: RenderedEntity) {
@@ -83,8 +82,15 @@ export class Scene {
         this.activeEntities = this.activeEntities.filter(e => deactivated.has(e));
     }
     
-    public removeEntities(...entities: RenderedEntity[]) {
-        entities.forEach(entity => this.removeEntity(entity));
+    public remove(...objects: (Object3D | RenderedEntity | IsInteractive)[]) {
+        objects.forEach(object => {
+            if (RenderedEntity.isRenderedEntity(object))
+                return this.removeEntity(object)
+
+            this._scene.remove(object);
+        })
+
+        return this;
     }
 
     public update(clock: Clock) {

@@ -27,12 +27,11 @@ export class ExampleRender extends Render<ExampleScene> implements IExampleRende
     }
 
     public onStart(): void {
-        this.register(this.controller)
-            .initialize()
+        this.initialize(this.controller)
             .then(() => this.renderAnimation())
             .catch(console.error);
 
-        this.showStats({})        
+        this.showStats()        
     }
 
     protected onUpdate(): void {

@@ -2,6 +2,7 @@ import { RenderedEntity } from "../renderer/RenderedEntity";
 import { Curve, Vector3 } from "three";
 import { HasPosition, Connection } from "./Connection";
 import { AnyConnection } from "./ConnectionPath";
+import { Path } from "./Path";
 
 export const EmissionSpeed: 
     [ number, number, number, number, number, number, number ] = 
@@ -25,7 +26,7 @@ export class Emission {
     public vector: number;
     public speed: number;
     public direction: PathDirection;
-    public connection: Connection<Curve<Vector3>>;
+    public connection: Path<Curve<Vector3>>;
     public margin: number;
     public instanceCount: number;
     public source: HasPosition;

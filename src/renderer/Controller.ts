@@ -1,3 +1,4 @@
+import { Clock } from 'three';
 import { Render } from './Render';
 
 export abstract class Controller {    
@@ -8,10 +9,10 @@ export abstract class Controller {
     public abstract setup()
     public abstract onInit()
 
-    protected onUpdate() {} 
+    protected onUpdate(clock: Clock) {} 
     public onCommand() {}
-    public update() {
-        this.onUpdate();
+    public update(clock: Clock) {
+        this.onUpdate(clock);
     }
 
     protected playAnimation(model, name: string) {
