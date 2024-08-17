@@ -31,9 +31,9 @@ const containerStyle = {
 function App() {
     return (
         <div style={{ display: "flex"}}>
-            <div style={containerStyle}>
+            {/* <div style={containerStyle}>
                 <ExampleApp/>
-            </div>
+            </div> */}
             <div style={containerStyle}>
                 <ExampleApp />        
             </div>

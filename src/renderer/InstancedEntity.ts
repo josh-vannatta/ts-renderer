@@ -1,5 +1,5 @@
 import { BufferGeometry, Color, DynamicDrawUsage, InstancedBufferAttribute, InstancedMesh, Material, Vector3 } from 'three';
-import { IsInteractive, RenderedEntity, ViewInteractions } from '../renderer/RenderedEntity';
+import { IsInteractive, RenderedEntity, ViewInteractions } from './RenderedEntity';
 
 export class InstanceCollection extends RenderedEntity implements IsInteractive {
     public mesh: InstancedMesh<BufferGeometry>;
@@ -7,20 +7,21 @@ export class InstanceCollection extends RenderedEntity implements IsInteractive 
     public readonly isRenderedInstances: boolean = true;
 
     constructor(
-        public readonly renderedEntities: InstancedEntity[], 
-        private ref: Instance) 
+        public readonly entities: InstancedEntity[], 
+        private ref: Instance,
+        private maxInstances: number = 1000) 
     {
         super();
-        renderedEntities.forEach((entity, i) => entity.instance = ref.clone(i));
+        entities.forEach((entity, i) => entity.instance = ref.clone(i));
         this.interactions = new ViewInteractions();
     }
     
     public onCreate() {
         const color = this.ref.material.color.clone();
+        const colors: Float32Array = new Float32Array(this.entities.length * 3);
         this.ref.material.color = new Color(0xffffff);
-        const colors: Float32Array = new Float32Array(this.renderedEntities.length * 3);
 
-        this.renderedEntities.forEach((entity, i) => {
+        this.entities.forEach((entity, i) => { 
             color.clone().toArray(colors, i * 3);
             entity.onCreate();
             entity.calcWorldPosition = () => {
@@ -39,7 +40,7 @@ export class InstanceCollection extends RenderedEntity implements IsInteractive 
 
         this.ref.geometry.setAttribute("color", new InstancedBufferAttribute(colors, 3));
         this.ref.material.vertexColors = true;
-        this.mesh = new InstancedMesh(this.ref.geometry, this.ref.material, this.renderedEntities.length);
+        this.mesh = new InstancedMesh(this.ref.geometry, this.ref.material, this.entities.length);
 
         this.mesh.instanceMatrix.setUsage(DynamicDrawUsage);
         this.add(this.mesh);       
@@ -48,7 +49,7 @@ export class InstanceCollection extends RenderedEntity implements IsInteractive 
     public onUpdate() {
         let needsUpdate = false;
 
-        this.renderedEntities.forEach(entity => {
+        this.entities.forEach(entity => {
             if (!entity.instance.needsUpdate)
                 return;
 
@@ -74,11 +75,11 @@ export class InstanceCollection extends RenderedEntity implements IsInteractive 
     }
 
     public onDestroy() {
-        this.renderedEntities.forEach(entity => entity.onDestroy());
+        this.entities.forEach(entity => entity.onDestroy());
     }
 
     public getHoveredInstance(intersects: Vector3[]) {
-        return this.renderedEntities.find(entity => {
+        return this.entities.find(entity => {
             const dist = intersects[0].distanceTo(entity.worldPosition);
             const doesIntersect = dist <= entity.instance.bounding * entity.averageScale;
 
@@ -90,8 +91,8 @@ export class InstanceCollection extends RenderedEntity implements IsInteractive 
     }
 
     public onReset() {       
-        this.renderedEntities.forEach(entity => {
-            if (ViewInteractions.isInteractive(entity))
+        this.entities.forEach(entity => {
+            if (ViewInteractions.isInstance(entity))
                 entity.onReset();
         })
     }
@@ -132,12 +133,12 @@ export class Instance {
 
         return instance;
     }
+
+    public static isInstance(object: any): object is InstancedEntity {
+        return object.instance && object.instance.isRenderedInstance;
+    }
 }
 
 export interface InstancedEntity extends RenderedEntity {
     instance: Instance
-}
-
-export function instanceOfInstancedEntity(object: any): object is InstancedEntity {
-    return object.instance && object.instance.isRenderedInstance;
 }

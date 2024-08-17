@@ -24,7 +24,7 @@ export class Scene {
     }
 
     private activate(entity: RenderedEntity) {                    
-        if (ViewInteractions.isInteractive(entity) &&
+        if (ViewInteractions.isInstance(entity) &&
             !this.activeEntities.includes(entity))    
             this.activeEntities.push(entity);
 
@@ -38,7 +38,7 @@ export class Scene {
     }
 
     private deactivate(entity: RenderedEntity, deactivated: Set<IsInteractive>) {
-        if (ViewInteractions.isInteractive(entity))    
+        if (ViewInteractions.isInstance(entity))    
             deactivated.add(entity);
 
         // if (RenderedInstances.isInstance(entity))
@@ -62,7 +62,7 @@ export class Scene {
 
     public add(...objects: (Object3D | RenderedEntity | IsInteractive)[]) {
         objects.forEach(object => {
-            if (RenderedEntity.isRenderedEntity(object))
+            if (RenderedEntity.isInstance(object))
                 return this.addEntity(object)
 
             this._scene.add(object);
@@ -84,7 +84,7 @@ export class Scene {
     
     public remove(...objects: (Object3D | RenderedEntity | IsInteractive)[]) {
         objects.forEach(object => {
-            if (RenderedEntity.isRenderedEntity(object))
+            if (RenderedEntity.isInstance(object))
                 return this.removeEntity(object)
 
             this._scene.remove(object);

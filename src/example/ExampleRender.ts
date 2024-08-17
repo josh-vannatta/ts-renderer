@@ -19,8 +19,8 @@ export class ExampleRender extends Render<ExampleScene> implements IExampleRende
     protected onSetup(): void {
         this.camera.setup({
             far: 20000,
-            focus: {x: 0, y: 2, z: 0},
-            position: {x: -50, y: 0, z: -50},
+            focus: {x: 0, y: 0, z: 0},
+            position: {x: -50, y: 20, z: -50},
             controls: true
         })
         this.lighting.setup(Lighting.Basic);

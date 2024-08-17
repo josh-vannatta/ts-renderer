@@ -1,5 +1,5 @@
 import { Raycaster, Vector2, Vector3 } from 'three';
-import { InstanceCollection } from '../utils/Instancing';
+import { InstanceCollection } from './InstancedEntity';
 import { Camera } from './Camera';
 import { EventSource } from '../utils/EventSource';
 import { IsInteractive, RenderedEntity, ViewInteractions } from './RenderedEntity';
@@ -165,7 +165,7 @@ export class View implements IView {
                 
                 var intersected = entity.getHoveredInstance(intersections);
 
-                if (intersected && ViewInteractions.isInteractive(intersected))
+                if (intersected && ViewInteractions.isInstance(intersected))
                     entity = intersected;
             }
 

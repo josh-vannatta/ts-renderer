@@ -1,6 +1,7 @@
-import { Vector3, Euler, Quaternion, Object3D, Clock, Intersection, AnimationMixer, AnimationObjectGroup, AnimationAction, LoopRepeat } from "three";
+import { AnimationAction, AnimationMixer, Clock, Euler, LoopRepeat, Object3D, Quaternion, Vector3 } from "three";
+import { Physics, PhysicsData } from "../physics/Physics";
+import { EventObserver, EventSource } from "../utils/EventSource";
 import { StateMachine } from "../utils/StateUtils";
-import { EventSource, EventObserver } from "../utils/EventSource";
 import { AssetLoader } from "./Loader";
 
 export type Animations = Record<string, AnimationAction>;
@@ -157,7 +158,7 @@ export abstract class RenderedEntity extends Object3D {
         this._childEntites = this._childEntites.filter(child => {
             const removed = entities.find(entity => entity.uuid == child.uuid);
 
-            if (removed && ViewInteractions.isInteractive(child))
+            if (removed && ViewInteractions.isInstance(child))
                 child.interactions.active = false;
 
             if (removed) {
@@ -280,8 +281,16 @@ export abstract class RenderedEntity extends Object3D {
         return this["data"] != undefined && this["data"] instanceof type;
     }
     
+    public set physicsData(physicsData: PhysicsData) {
+        // Physics.Init(this, physicsData)
+        this.userData.physicsData = physicsData;
+    }
 
-    public static isRenderedEntity(object: any): object is IsInteractive {
+    public get physicsData() {
+        return this.userData.physicsData as PhysicsData
+    }
+
+    public static isInstance(object: any): object is IsInteractive {
         return (
             object.state != undefined &&
             typeof object.onCreate === "function" &&
@@ -341,7 +350,7 @@ export class ViewInteractions {
         this._cameraDistance = distance;
     }
 
-    public static isInteractive(object: any): object is IsInteractive {
+    public static isInstance(object: any): object is IsInteractive {
         return (
             object.interactions != undefined &&
             typeof object.onHover === "function" &&

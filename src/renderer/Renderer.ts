@@ -1,4 +1,4 @@
-import { WebGLRenderer, Clock, AnimationMixer, AnimationClip, Object3D} from 'three';
+import { WebGLRenderer, Clock, AnimationMixer, AnimationClip, Object3D, PCFSoftShadowMap} from 'three';
 import { Camera } from './Camera';
 import { Scene } from './Scene';
 
@@ -28,6 +28,9 @@ export class Renderer {
         this.renderer.setClearColor( 0x000000, 0);
         this.clock = new Clock();
         this.canvas = this.renderer.domElement;
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = PCFSoftShadowMap;
         this.delta = 0;
     }
 

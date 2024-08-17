@@ -274,7 +274,7 @@ abstract class Render<RenderedScene extends Scene> implements IRender<RenderedSc
             if (!this.observed[entity.id])
                 return;
 
-            if (!ViewInteractions.isInteractive(entity))
+            if (!ViewInteractions.isInstance(entity))
                 return
 
             this.observed[entity.id].events.notify({

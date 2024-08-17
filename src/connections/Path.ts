@@ -1,7 +1,7 @@
 import { Curve, Vector3 } from "three";
 import { RenderedEntity } from "../renderer/RenderedEntity";
 import { CurveUtils } from "../utils/CurveUtils";
-import { instanceOfInstancedEntity } from "../utils/Instancing";
+import { Instance } from "../renderer/InstancedEntity";
 import { ConnectionNode } from "./ConnectionPath";
 import { Emission, PathDirection } from "./Emission";
 import { EmissionInstances } from "./EmissionInstances";
@@ -120,7 +120,7 @@ export abstract class Path<ConnectionCurve extends Curve<Vector3> = Curve<Vector
 
         emission.connection = this;
 
-        if (instanceOfInstancedEntity(emission.entity))    
+        if (Instance.isInstance(emission.entity))    
             return this.emitInstance(emission);  
 
         if (this.overlapping(emission))

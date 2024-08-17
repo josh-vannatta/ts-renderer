@@ -1,37 +1,28 @@
-import { Clock, Object3D } from "three";
+import { Object3D, Vector3 } from "three";
+import { Force } from "./Force";
+import { PhysicsData } from "./Physics";
 
-interface Gravitation {
-    object: Object3D,
-    velocity: number
-}
-
-export class Gravity {
-    public maxVelocity = 100;
-    public scalar = 1;
-
-    private _objects: Record<string, Gravitation> = {};
-
-    public add(...objects: Object3D[]) {
-        objects.forEach(object => {
-            if (!!this._objects[object.uuid])
-                return;
-
-            this._objects[object.uuid] = {
-                object,
-                velocity: 1 * this.scalar
-            };
-        })
+export class Gravity extends Force {
+    private acceleration: Vector3;
+    
+    constructor(
+        gravityAcceleration = new Vector3(0, -9.8, 0), 
+        private scalar = 2) { // Adjusted to standard gravity
+        super();
+        this.acceleration = gravityAcceleration;
     }
 
-    public update(clock: Clock) {
-        let delta = clock.getDelta()
+    public applyForce(object: Object3D, deltaTime: number): void {
+        const physicsData = object.userData.physicsData as PhysicsData;
 
-        Object.values(this._objects).forEach(e => {
-            
-            if (Math.abs(e.velocity) < this.maxVelocity)
-                e.velocity += e.velocity * delta
+        if (physicsData && physicsData.velocity && !physicsData.fixed) {
+            const effectiveGravity = this.acceleration.clone().multiplyScalar(deltaTime * this.scalar);
 
-            e.object.position.y -= e.velocity;
-        })
+            // Apply gravity considering the mass of the object
+            physicsData.velocity.addScaledVector(effectiveGravity, 1 / (physicsData.mass || 1));
+
+            // Update the position based on the current velocity
+            object.position.addScaledVector(physicsData.velocity, deltaTime);
+        }
     }
 }

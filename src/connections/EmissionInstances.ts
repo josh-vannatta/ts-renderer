@@ -1,5 +1,5 @@
-import { InstancedEntity, instanceOfInstancedEntity } from "../utils/Instancing";
 import { BufferGeometry, Color, DynamicDrawUsage, InstancedBufferAttribute, InstancedMesh } from "three";
+import { Instance, InstancedEntity } from "../renderer/InstancedEntity";
 import { HasPosition } from "./Connection";
 import { Emission } from "./Emission";
 
@@ -18,7 +18,7 @@ export class EmissionInstances {
     public comparitors: Comparitor[] = [];
 
     constructor(emission: Emission) {
-        if (!instanceOfInstancedEntity(emission.entity))
+        if (!Instance.isInstance(emission.entity))
             throw new Error("Emission must be InstancedEntity to use EmissionInstances");         
 
         this.emissions = new Array(emission.instanceCount).fill(undefined);

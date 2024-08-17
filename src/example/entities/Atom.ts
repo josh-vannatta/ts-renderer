@@ -1,6 +1,6 @@
 import { Clock, Color, MeshToonMaterial, SphereGeometry, Vector3 } from "three";
 import { IsInteractive, RenderedEntity, ViewInteractions } from "../../renderer/RenderedEntity";
-import { InstancedEntity, Instance } from "../../utils/Instancing";
+import { InstancedEntity, Instance } from "../../renderer/InstancedEntity";
 import { PointData } from "../ExampleApp";
 import { State } from "../../utils/StateUtils";
 
