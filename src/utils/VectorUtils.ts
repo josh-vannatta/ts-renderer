@@ -53,4 +53,16 @@ export class VectorUtils {
             Math.random() * 2 - 1,
         ).multiplyScalar(scale);
     }
+
+    public static toJson(vector: Vector3) {
+        return {
+            x: vector.x,
+            y: vector.y,
+            z: vector.z
+        }
+    }
+
+    public static fromJson(vector: Partial<Vector3>) {
+        return new Vector3(vector.x, vector.y, vector.z)
+    }
 }

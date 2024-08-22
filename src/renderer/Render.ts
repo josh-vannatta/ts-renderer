@@ -234,17 +234,7 @@ abstract class Render<RenderedScene extends Scene> implements IRender<RenderedSc
         if (this.renderer.clock.getElapsedTime() < .5) return;        
  
         this.deselect();
-        let intersects = this.view.intersect(this.scene.activeEntities);
-        
-        this.interacted.push(...intersects);
-        this.interacted.sort((a, b) => {
-            let distA = this.camera.distanceTo(a.position), 
-                distB = this.camera.distanceTo(b.position),
-                diff = b.interactions.zIndex - a.interactions.zIndex;
-
-            return diff != 0 ? distA - distB + diff * 10000 : distA - distB;
-        })
-
+        this.interacted = this.view.intersect(this.scene.activeEntities);
         this.view.setHovered(this.interacted.length > 0);
     }
 

@@ -1,4 +1,4 @@
-import { WebGLRenderer, Clock, AnimationMixer, AnimationClip, Object3D, PCFSoftShadowMap} from 'three';
+import { WebGLRenderer, Clock, AnimationMixer, AnimationClip, Object3D, PCFSoftShadowMap, WebGLRendererParameters} from 'three';
 import { Camera } from './Camera';
 import { Scene } from './Scene';
 
@@ -23,7 +23,7 @@ export class Renderer {
     public canvas: HTMLCanvasElement
     public parent: HTMLElement;
 
-    constructor(opts = Renderer.BASIC_SETUP) {        
+    constructor(opts: WebGLRendererParameters = Renderer.BASIC_SETUP) {        
         this.renderer = new WebGLRenderer(opts);
         this.renderer.setClearColor( 0x000000, 0);
         this.clock = new Clock();

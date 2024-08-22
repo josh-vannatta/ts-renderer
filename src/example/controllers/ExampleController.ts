@@ -1,19 +1,15 @@
-import { BoxGeometry, Clock, Mesh, MeshBasicMaterial, MeshPhongMaterial, MeshToonMaterial, PlaneGeometry, SphereGeometry, Vector3 } from 'three';
+import { BoxGeometry, Clock, Mesh, MeshPhongMaterial, Vector3 } from 'three';
 import { ConnectionPath } from '../../connections/ConnectionPath';
-import { Emission } from '../../connections/Emission';
+import { DirectionalForce, ForceDirectedField } from '../../physics/Force';
 import { Gravity } from '../../physics/Gravity';
+import { Physics } from '../../physics/Physics';
 import { Controller } from '../../renderer/Controller';
-import { InstanceCollection } from '../../renderer/InstancedEntity';
 import { State } from '../../utils/StateUtils';
 import { PointData } from '../ExampleApp';
 import { ExampleScene } from '../ExampleScene';
 import { Atom } from '../entities/Atom';
 import { Background, BackgroundSize } from '../entities/Background';
-import { Line } from '../entities/Line';
-import { ExplosionSystem } from '../entities/Explosion';
 import { Ball } from '../entities/Ball';
-import { Physics } from '../../physics/Physics';
-import { Collision } from '../../physics/Collisions';
 import { VectorUtils } from '../../utils/VectorUtils';
 
 class SpaceState extends State {
@@ -43,25 +39,17 @@ export class ExampleController extends Controller {
             new BoxGeometry(51, 2, 51), 
             new MeshPhongMaterial({ color: "rgb(0,100,150)" })
         );
-        const balls = new Array(20).fill(null).map(i => new Ball());
-        // const ballInstances = new InstanceCollection(balls, Ball.Instance)
-        const gravity = new Gravity()
+        const radius = 1;
+        const balls = new Array(30).fill(null).map(i => new Ball(radius));
+        // const instances = new InstanceCollection(balls, Ball.Instance)
 
-        balls.forEach(ball => {
+        balls.forEach(ball => {            
+            ball.position.copy(VectorUtils.random(radius));
+            ball.position.y += 10;
             ball.castShadow = true
-            const vx = (Math.random() - 0.5) * 2;
-            const vz = (Math.random() - 0.5) * 2;
-
-            ball.userData.physicsData = {
-                velocity: VectorUtils.random(5),
-                mass: 1,
-                fixed: false 
-            }
-
-            ball.position.y = 10;
-            ball.position.x = vx;
-            ball.position.z = vz;
         })
+
+        const forceDirected = new ForceDirectedField(balls, radius * 2);
 
         ground.receiveShadow = true
         ground.userData.physicsData = {
@@ -69,11 +57,16 @@ export class ExampleController extends Controller {
             mass: 20,
             fixed: true // Mark it as fixed
         }
-        ground.position.y = -10
+        ground.position.y = -20
 
-        this.physics = new Physics()
+        this.gravity = new Gravity();
+        this.physics = new Physics({ collisions: true })
         this.physics.add(...balls, ground)
-        this.physics.addForce(gravity);
+        this.physics.addForce(forceDirected);
+
+        setTimeout(() => {
+            this.physics.addForce(new Gravity())
+        }, 2000)
 
         this._scene.add(background, ground, ...balls);
     }

@@ -5,12 +5,12 @@ export abstract class Force {
     public abstract applyForce(object: Object3D, deltaTime: number): void;
 }
 
-export class GeneralForce extends Force {
+export class DirectionalForce extends Force {
     private forceVector: Vector3;
 
-    constructor(forceVector: Vector3) {
+    constructor(direction: Partial<Vector3>) {
         super();
-        this.forceVector = forceVector;
+        this.forceVector = new Vector3(direction.x, direction.y, direction.z);
     }
 
     public applyForce(object: Object3D, deltaTime: number): void {
@@ -28,13 +28,10 @@ export class GeneralForce extends Force {
 
 export class ForceDirectedField extends Force {
     private objects: Object3D[];
-    private forces: Force[];
-    public threshold = 0.5;
 
-    constructor(objects: Object3D[] = [], forces: Force[] = []) {
+    constructor(objects: Object3D[] = [], public threshold = 0.5) {
         super();
         this.objects = objects;
-        this.forces = forces;
     }
 
     public addObject(object: Object3D) {
@@ -42,34 +39,22 @@ export class ForceDirectedField extends Force {
     }
 
     public applyForce(object: Object3D, deltaTime: number): void {
-        // Apply general forces to the object
-        this.forces.forEach(force => {
-            force.applyForce(object, deltaTime);
-        });
-
         // Apply repulsive force to avoid overlap with other objects
         this.applyRepulsiveForce(object, deltaTime);
     }
 
-    private applyRepulsiveForce(object: Object3D, deltaTime: number): void {
-        const physicsData = object.userData.physicsData as PhysicsData;
-
-        this.objects.forEach(otherObject => {
-            if (object !== otherObject) {
-                const direction = new Vector3().subVectors(object.position, otherObject.position);
+    private applyRepulsiveForce(a: Object3D, deltaTime: number): void {
+        this.objects.forEach(b => {
+            if (a !== b) {
+                const direction = new Vector3().subVectors(a.position, b.position);
                 const distance = direction.length();
 
                 if (distance < this.threshold) {
-                    const repulsion = direction.normalize().multiplyScalar(1 / distance);
+                    const repulsion = direction.normalize().multiplyScalar(this.threshold ?? 1 / distance);
 
-                    if (physicsData && physicsData.velocity) {
-                        // Apply repulsive force to velocity if PhysicsData is present
-                        physicsData.velocity.addScaledVector(repulsion, deltaTime);
-                    } else {
-                        // Fallback: directly modify the position if no PhysicsData is present
-                        object.position.addScaledVector(repulsion, deltaTime);
-                    }
-                }
+                    // Fallback: directly modify the position if no PhysicsData is present
+                    a.position.addScaledVector(repulsion, deltaTime);
+            }
             }
         });
     }
