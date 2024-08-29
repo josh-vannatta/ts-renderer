@@ -23,7 +23,7 @@ Loader.load({
 });
 
 const containerStyle = {
-    width: "calc(50% - 32px)", 
+    width: "100vw", 
     height: "100%",
     border: "1px solid #3ab8c3",
     margin: 16

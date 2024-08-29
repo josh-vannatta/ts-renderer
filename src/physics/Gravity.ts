@@ -4,8 +4,8 @@ import { PhysicsData } from "./Physics";
 
 export class Gravity extends Force {
     constructor(
-        private acceleration = new Vector3(0, -30, 0), 
-        private scalar = 2
+        private acceleration = new Vector3(0, -9.8, 0), 
+        private amplitude = 1
     ) { 
         super();
     }
@@ -14,10 +14,10 @@ export class Gravity extends Force {
         const physicsData = object.userData.physicsData as PhysicsData;
 
         if (physicsData && physicsData.velocity && !physicsData.fixed) {
-            const effectiveGravity = this.acceleration.clone().multiplyScalar(deltaTime * this.scalar);
+            const effectiveGravity = this.acceleration.clone().multiplyScalar(deltaTime * this.amplitude);
 
             physicsData.velocity.addScaledVector(effectiveGravity, 1 / (physicsData.mass || 1));
-            object.position.addScaledVector(physicsData.velocity, deltaTime);
+            // object.position.addScaledVector(physicsData.velocity, deltaTime);
         }
     }
 }

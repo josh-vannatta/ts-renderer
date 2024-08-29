@@ -22,7 +22,7 @@ export const PinMenu: FunctionComponent<Props> = props => {
 
     const Pin = ({  e, id }) => (
         <div style={pinStyles}>
-            <div style={{ paddingRight: 8}}> {e.data.id} {e.data.status }</div>
+            <div style={{ paddingRight: 8}}> {e.data?.id} {e.data?.status }</div>
             <span onClick={() => handleClose(id)}>X</span>
         </div>
     )

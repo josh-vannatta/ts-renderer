@@ -29,12 +29,9 @@ export class Renderer {
         this.clock = new Clock();
         this.canvas = this.renderer.domElement;
         this.renderer.shadowMap.enabled = true;
-        this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = PCFSoftShadowMap;
         this.delta = 0;
     }
-
-    private resetting = false;
 
     public unbind(element: HTMLElement) {
         try {
@@ -82,7 +79,6 @@ export class Renderer {
     // }
     
     public render(scene: Scene, camera: Camera): void {
-        this.resetting = false;
         this.delta = this.clock.getDelta();
         this.animations.forEach((clip: Clip)=>
             this.animationMixers[clip.mixer].clipAction(clip.animation).play());

@@ -1,79 +1,79 @@
-import { Vector3, Color, Object3D, Clock } from 'three';
-import { Force } from './Force';
-import { Physics, PhysicsData } from './Physics';
+import { Vector3, Color, Clock, BufferGeometry, SphereGeometry, MeshBasicMaterial } from 'three';
 import { RenderedEntity } from '../renderer/RenderedEntity';
+import { Instance, InstanceCollection, InstancedEntity, InstanceMaterial } from '../renderer/InstancedEntity';
 
-export interface Particle extends RenderedEntity {
-    velocity: Vector3;
-    lifespan: number;
-    age: number;
-    color: Color;
-}
+export class Particle extends RenderedEntity implements InstancedEntity {
+    public velocity: Vector3;
+    public lifespan: number;
+    public age: number = 0;
+    public color: Color;
+    public instance: Instance = Particle.Instance;
 
-export interface ParticleFactory {
-    createParticle(position: Vector3, velocity: Vector3, lifespan: number, color: Color): Particle;
-}
-
-export class ParticleSystem extends RenderedEntity {
-    private particles: Particle[] = [];
-    private forces: Force[] = [];
-    protected particleFactory: ParticleFactory;
-
-    constructor(particleFactory: ParticleFactory) {
+    constructor(options: Partial<Particle>) {
         super();
-        this.particleFactory = particleFactory;
-    }
 
-    public addParticle(particle: Particle) {
-        if (!particle.userData.physicsData) {
-            Physics.Init(particle);
-        }
-        this.particles.push(particle);
-    }
-
-    public addForce(force: Force) {
-        this.forces.push(force);
+        this.position.copy(options.position ?? new Vector3());
+        this.velocity = options.velocity ?? new Vector3();
+        this.lifespan = options.lifespan ?? 1;
+        this.color = this.instance.color = options.color ?? new Color(0xffffff);
+        // this.instance = options.instance!;
+        this.instance.material.color = this.color;
     }
 
     public onCreate(): void { }
 
-    public onUpdate(clock: Clock) {
-        const deltaTime = clock.getDelta();
-        
-        this.particles.forEach((particle, index) => {
-            const physicsData = particle.userData.physicsData as PhysicsData;
+    public onUpdate(clock: Clock): void { }
 
-            // Remove expired particles
-            if (physicsData.age >= (physicsData?.lifespan ?? 0)) {
-                this.particles.splice(index, 1); // Remove from particles array
-                return;
-            }
-
-            // Apply all forces to the particle
-            this.forces.forEach(force => {
-                force.applyForce(particle, deltaTime);
-            });
-
-            // Update particle's position, lifespan, etc.
-            particle.position.addScaledVector(physicsData.velocity, deltaTime);
-            physicsData.age += deltaTime;
-            particle.update(clock); // Trigger the update to mark the instance as needing an update
-        });
+    public onDestroy(): void {
+        this.visible = false; // Hide or remove the particle when it expires
     }
 
-    public spawnParticles(position: Vector3, count: number) {
-        for (let i = 0; i < count; i++) {
-            const velocity = new Vector3(
-                (Math.random() - 0.5) * 2, 
-                (Math.random() - 0.5) * 2, 
-                (Math.random() - 0.5) * 2
-            );
+    public static get Instance() {
+        const geometry = new SphereGeometry(0.1, 8, 8);
+        const material = new MeshBasicMaterial({ color: "rgb(255,255,255)" });
+        return new Instance(geometry, material);
+    }
+}
 
-            const lifespan = Math.random() * 5; // Random lifespan between 0 and 5 seconds
-            const color = new Color(Math.random(), Math.random(), Math.random());
+export class ParticleSystem extends InstanceCollection {
+    private maxParticles: number;
+    private particles: Particle[] = [];
 
-            const particle = this.particleFactory.createParticle(position.clone(), velocity, lifespan, color);
-            this.addParticle(particle);
+    constructor(instance: Instance = Particle.Instance, maxParticles: number = 10000) {
+        super([], instance, maxParticles);
+        this.maxParticles = maxParticles;
+    }
+
+    public spawnParticle(options: Partial<Particle>): void {
+        if (this.particles.length >= this.maxParticles) {
+            console.log("Max particles reached. Cannot add more. ");
+            return;
         }
+
+        const particle = new Particle(options);
+
+        this.particles.push(particle);
+        this.addInstance(particle);
+    }
+
+    public override onUpdate(clock: Clock): void {
+        this.particles.forEach((particle, index) => {
+            particle.position.addScaledVector(particle.velocity, .025);
+            particle.age += .025;
+            
+            if (particle.age >= particle.lifespan) {
+                this.particles.splice(index, 1);
+                this.removeInstance(particle);
+            }
+        });
+
+        super.onUpdate(clock);
+
+    }
+
+    public onDestroy(): void {
+        this.particles.forEach(particle => particle.onDestroy());
+        this.particles = [];
+        super.onDestroy();
     }
 }

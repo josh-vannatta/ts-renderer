@@ -1,85 +1,150 @@
-import { BufferGeometry, Color, DynamicDrawUsage, InstancedBufferAttribute, InstancedMesh, Material, Vector3 } from 'three';
+import { BufferGeometry, Clock, Color, DynamicDrawUsage, InstancedBufferAttribute, InstancedMesh, Material, Matrix4, Object3D, Vector3 } from 'three';
 import { IsInteractive, RenderedEntity, ViewInteractions } from './RenderedEntity';
 
 export class InstanceCollection extends RenderedEntity implements IsInteractive {
     public mesh: InstancedMesh<BufferGeometry>;
     public interactions: ViewInteractions;
     public readonly isRenderedInstances: boolean = true;
+    public readonly empty: Matrix4 = new Matrix4();
+    public empties: number[] = [];
 
     constructor(
-        public readonly entities: InstancedEntity[], 
-        private ref: Instance,
+        public _entities: (InstancedEntity | undefined)[], 
+        protected ref: Instance,
         private maxInstances: number = 1000) 
     {
         super();
-        entities.forEach((entity, i) => entity.instance = ref.clone(i));
         this.interactions = new ViewInteractions();
+        this.mesh = new InstancedMesh(this.ref.geometry, this.ref.material, this.maxInstances);
+        this.add(this.mesh);
+        this.empty.setPosition(0,-100000,0);   
+    }
+
+    public get entities() {
+        return this._entities.filter(e => e != undefined);
+    }
+
+    public needsUpdate(update: boolean = true) {
+        this.mesh.instanceMatrix.needsUpdate = update;
+        this.mesh.geometry.attributes.color.needsUpdate = update;
     }
     
     public onCreate() {
-        const color = this.ref.material.color.clone();
-        const colors: Float32Array = new Float32Array(this.entities.length * 3);
-        this.ref.material.color = new Color(0xffffff);
+        const colors: Float32Array = new Float32Array(this.maxInstances * 3); // Allocate max size for colors
 
-        this.entities.forEach((entity, i) => { 
-            color.clone().toArray(colors, i * 3);
-            entity.onCreate();
-            entity.calcWorldPosition = () => {
-                var position = entity.position.clone()
-                
-                position.applyEuler(this.rotation);
-
-                if (this.parent) 
-                    position.applyEuler(this.parent.rotation);        
-
-                position.add(this.worldPosition);
-
-                return position;
-            }
-        });
-
-        this.ref.geometry.setAttribute("color", new InstancedBufferAttribute(colors, 3));
-        this.ref.material.vertexColors = true;
-        this.mesh = new InstancedMesh(this.ref.geometry, this.ref.material, this.entities.length);
-
+        // Initialize the instanced mesh
         this.mesh.instanceMatrix.setUsage(DynamicDrawUsage);
-        this.add(this.mesh);       
+
+        // Pre-allocate colors attribute
+        this.mesh.geometry.setAttribute("color", new InstancedBufferAttribute(colors, 3));
+        this.ref.material.vertexColors = true;
+
+        for (let i = this._entities.length; i < this.maxInstances; i++) {
+            this._entities.push(undefined);
+            this.empties.push(i)
+            this.mesh.setMatrixAt(i, this.empty);
+            this.mesh.geometry.attributes.color.setXYZ(i, 0,0,0);
+        }
+
+        this.empties = this.empties.reverse();
+        this.needsUpdate();
+
+        // Add existing entities
+        this._entities.forEach(entity => entity ? this.addInstance(entity): null);
     }
 
-    public onUpdate() {
+    public override add(...object: (Object3D | undefined)[]): this {
+        if (object.length == 0)
+            return this;
+
+        object.forEach((instance, i) => {
+            if (Instance.isInstance(instance))
+                this.addInstance(instance);
+            else    
+                super.add(instance);
+        });
+
+        return this;
+    }
+
+    public override remove(...object: (Object3D | undefined)[]): this {
+        if (object.length == 0)
+            return this;
+
+        object.forEach((instance, i) => {
+            if (Instance.isInstance(instance))
+                this.removeInstance(instance);
+            else    
+                super.remove(instance);
+        });
+
+        return this;
+    }
+
+    public addInstance(entity: InstancedEntity) {
+        // Ensure we're not exceeding the maximum number of instances
+        if (this.empties.length == 0) {
+            console.warn("Max instances reached. Cannot add more.");
+            return;
+        }
+
+        const index = this.empties.pop() ?? this._entities.length;
+
+        entity.instance = this.ref.clone(index);
+        this._entities[index] = entity;
+        this.mesh.setMatrixAt(entity.instance.index, entity.matrix);
+        this.updateColor(entity)
+        this.needsUpdate();
+        entity.onCreate();
+    }
+    
+
+    public removeInstance(entity: InstancedEntity) {
+        this._entities[entity.instance.index] = undefined;
+        this.mesh.setMatrixAt(entity.instance.index, this.empty);
+        this.mesh.geometry.attributes.color.setXYZ(entity.instance.index, 0,0,0);
+        this.empties.push(entity.instance.index);
+        this.needsUpdate();
+        entity.onDestroy();
+    }
+
+    private updateColor(entity: InstancedEntity) {
+        this.mesh.geometry.attributes.color.setXYZ(
+            entity.instance.index,
+            entity.instance.color.r,
+            entity.instance.color.g,
+            entity.instance.color.b
+        );
+    }
+
+    public onUpdate(clock: Clock) {
         let needsUpdate = false;
 
-        this.entities.forEach(entity => {
-            if (!entity.instance.needsUpdate)
+        this._entities.forEach((entity, i) => {
+            if (!entity?.instance?.needsUpdate)
                 return;
 
             entity.beforeUpdate();            
-            entity.update();
+            entity.update(clock);
             entity.updateMatrixWorld();
             this.mesh.setMatrixAt(entity.instance.index, entity.matrix);
-            this.mesh.geometry.attributes.color.setXYZ(
-                entity.instance.index,
-                entity.instance.color.r,
-                entity.instance.color.g,
-                entity.instance.color.b
-            );
+            this.updateColor(entity)
             needsUpdate = true;
             entity.afterUpdate();            
         });   
 
-        if (!needsUpdate)
-            return;        
-
-        this.mesh.instanceMatrix.needsUpdate = true;
-        this.mesh.geometry.attributes.color.needsUpdate = true;
+        this.needsUpdate(needsUpdate);
     }
 
     public onDestroy() {
-        this.entities.forEach(entity => entity.onDestroy());
+        this._entities.forEach(entity => entity?.onDestroy());
     }
 
     public getHoveredInstance(intersects: Vector3[]) {
-        return this.entities.find(entity => {
+        return this._entities.find(entity => {
+            if (!entity)
+                return false;
+
             const dist = intersects[0].distanceTo(entity.worldPosition);
             const doesIntersect = dist <= entity.instance.bounding * entity.averageScale;
 
@@ -87,14 +152,13 @@ export class InstanceCollection extends RenderedEntity implements IsInteractive 
         });
     }
 
-    public onHover(intersects?: Vector3[]) {
-    }
+    public onHover(intersects?: Vector3[]) {}
 
     public onReset() {       
-        this.entities.forEach(entity => {
+        this._entities.forEach(entity => {
             if (ViewInteractions.isInstance(entity))
                 entity.onReset();
-        })
+        });
     }
 
     public onSelect() {}
@@ -104,7 +168,7 @@ export class InstanceCollection extends RenderedEntity implements IsInteractive 
     }
 }
 
-interface InstanceMaterial extends Material {
+export interface InstanceMaterial extends Material {
     color: Color
 }
 

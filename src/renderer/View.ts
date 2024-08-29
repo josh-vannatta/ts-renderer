@@ -4,6 +4,8 @@ import { Camera } from './Camera';
 import { EventSource } from '../utils/EventSource';
 import { IsInteractive, RenderedEntity, ViewInteractions } from './RenderedEntity';
 import { VectorUtils } from '../utils/VectorUtils';
+import { ViewWorkerProps } from '../workers/view.worker';
+import { MeshUtils } from '../utils/MeshUtils';
 
 type ViewAction =  'resize' | 'click' |'mousemove' | 'hover' | 'mousedown' | 'mouseup' | 'keydown' | 'keyup' |'scroll';
 type ViewCallback = (event?: MouseEvent | KeyboardEvent) => void;
@@ -133,9 +135,9 @@ export class View implements IView {
     
     private setClickState(mouse, state) {
         switch (mouse) {
-        case 1: this.pointer.left = state; break;
-        case 2: this.pointer.middle = state; break;
-        case 3: this.pointer.right = state; break;
+            case 1: this.pointer.left = state; break;
+            case 2: this.pointer.middle = state; break;
+            case 3: this.pointer.right = state; break;
         }
     }    
 
@@ -160,26 +162,15 @@ export class View implements IView {
         this.pointer.raycaster.setFromCamera(new Vector2(this.pointer.x, this.pointer.y), this._camera.lense);
         entities.forEach(e => this.interactive[e.uuid] = e);
 
-        const serializedEntities = entities.map(entity => {
-            const boundingBox = new Box3().setFromObject(entity);
-
-            return {
-                uuid: entity.uuid,
-                boundingBox: {
-                    min: VectorUtils.toJson(boundingBox.min),
-                    max: VectorUtils.toJson(boundingBox.max),
-                },
-                position: VectorUtils.toJson(entity.position),
-            };
-        });
-
-        this.worker.postMessage({
+        const message: ViewWorkerProps = {
             ray: {
                 origin: VectorUtils.toJson(this.pointer.raycaster.ray.origin),
                 direction: VectorUtils.toJson(this.pointer.raycaster.ray.direction),
             },
-            entities: serializedEntities,
-        });
+            entities: entities.map(MeshUtils.toJson),
+        }
+
+        this.worker.postMessage(message);
 
         return this.intersections;
     }
@@ -191,7 +182,10 @@ export class View implements IView {
         this.intersections = [];
 
         intersections.forEach(entityId => {
-            const entity = this.interactive[entityId]
+            let entity = this.interactive[entityId]
+
+            if (InstanceCollection.isInstance(entity)) 
+                return;
 
             if (entity) {
                 entity.onHover([]);
@@ -203,7 +197,7 @@ export class View implements IView {
         });
     }
 
-    // In Memory intersection
+    // In Memory implementation
     // public intersect(entities: IsInteractive[]): IsInteractive[] 
     // {        
     //     let array: IsInteractive[] = [];

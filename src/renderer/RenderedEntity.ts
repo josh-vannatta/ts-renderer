@@ -51,7 +51,7 @@ export abstract class RenderedEntity extends Object3D {
     public abstract onUpdate(clock?: Clock): void;
     public onDestroy(): void {}
 
-    public update(clock?: Clock): void {
+    public update(clock: Clock): void {
         this.beforeUpdate();
         this.state.update();
         this.updateListeners(() => this._listeners.notify(this));
@@ -96,9 +96,31 @@ export abstract class RenderedEntity extends Object3D {
             return this;
 
         object.forEach(instance => {
-            if (!!instance)
+            if (!instance)
+                return;
+
+            if (RenderedEntity.isInstance(instance))
+                this.addEntity(instance);
+            else
                 super.add(instance)
         });
+
+        return this;
+    }
+
+    public override remove(...object: (Object3D | undefined)[]): this {
+        if (object.length == 0)
+            return this;
+
+        object.forEach(instance => {
+            if (!instance)
+                return;
+
+            if (RenderedEntity.isInstance(instance))
+                this.removeEntity(instance)
+            else
+                super.remove(instance)
+        })
 
         return this;
     }

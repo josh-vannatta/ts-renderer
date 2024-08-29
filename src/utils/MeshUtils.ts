@@ -1,6 +1,23 @@
-import { Group, Mesh, MeshStandardMaterial, Scene, Vector3 } from "three";
+import { Box3, Group, Mesh, MeshStandardMaterial, Object3D, Scene, Vector3 } from "three";
+import { VectorUtils } from "./VectorUtils";
 
 export class MeshUtils {
+    public static box = new Box3()
+
+    public static toJson(object: Object3D) {
+        MeshUtils.box.makeEmpty();
+        MeshUtils.box.setFromObject(object);
+
+        return {
+            uuid: object.uuid,
+            boundingBox: {
+                min: VectorUtils.toJson(MeshUtils.box.min),
+                max: VectorUtils.toJson(MeshUtils.box.max),
+            },
+            position: VectorUtils.toJson(object.position),
+        }
+    }
+
     public static setColor(mesh: Mesh | Group, color?: string): Mesh | Group {    
         mesh.children.forEach((child: any)  => {
             child.material = new MeshStandardMaterial({

@@ -13,8 +13,9 @@ export class Ball extends RenderedEntity implements IsInteractive, InstancedEnti
     public instance: Instance = ballInstance;
     public data: PointData = new PointData()
     public velocity: Vector3 = new Vector3(0, 0, 0);
+    public static radius = 1;
 
-    constructor(private size = .5) {
+    constructor(public size = Ball.radius) {
         super()
     }
 
@@ -34,7 +35,7 @@ export class Ball extends RenderedEntity implements IsInteractive, InstancedEnti
     public onUpdate(clock: Clock): void { }
 
     public static get Instance() {
-        const ballGeometry = new SphereGeometry(3, 32, 32);
+        const ballGeometry = new SphereGeometry(Ball.radius, 32, 32);
         const ballMaterial = new MeshPhongMaterial({ color: 0xff6347 }); // Tomato red ball
         return new Instance(ballGeometry, ballMaterial);
     }

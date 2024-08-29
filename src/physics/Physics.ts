@@ -13,15 +13,22 @@ export interface PhysicsData {
     [key: string]: any; // Allow for additional properties
 }
 
+interface Options {
+    collisions: boolean,
+    amplitude: number
+}
+
 export class Physics {
     private forces: Force[] = [];
     private objects: Record<string, Object3D> = {};
+    private options: Options;
 
-    constructor(
-        private options = {
-            collisions: true,
+    constructor(options?: Partial<Options>) {
+        this.options = {
+            collisions:  options?.collisions ?? true,
+            amplitude: options?.amplitude ?? 1,
         }
-    ) {}
+    }
 
     public addForce(...forces: Force[]) {
         forces.forEach(force => {
@@ -31,24 +38,18 @@ export class Physics {
 
     public add(...objects: Object3D[]) {
         objects.forEach(object => {
-            Physics.Init(object, object.userData.physicsData ?? {})            
+            Physics.init(object, object.userData.physicsData ?? {})            
             this.objects[object.uuid] = object;
         });
     }
 
     public update(clock: Clock) {
-        const delta = .008
+        const delta = .026 * this.options.amplitude
 
         this.entities.forEach(object => {
             const physicsData = object.userData.physicsData as PhysicsData;
 
             if (physicsData.fixed) return; // Skip updating fixed objects
-
-            this.entities.forEach(other => {
-                if (object !== other && this.options.collisions && physicsData.collisions) {
-                    Collision.resolveCollision(object, other, delta );
-                }
-            });
 
             this.forces.forEach(force => {
                 force.applyForce(object, delta );
@@ -56,13 +57,19 @@ export class Physics {
 
             physicsData?.forces?.forEach(force => force.applyForce(object, delta));
 
+            this.entities.forEach(other => {
+                if (object !== other && this.options.collisions && physicsData.collisions) {
+                    Collision.resolveCollision(object, other, delta );
+                }
+            });
+
             if (physicsData.velocity) {
                 object.position.addScaledVector(physicsData.velocity, delta );
             }
         });
     }
 
-    public static Init(object: Object3D, data?: PhysicsData) {
+    public static init(object: Object3D, data?: Partial<PhysicsData>) {
         object.userData.physicsData = {
             velocity: data?.velocity ?? new Vector3(),
             mass: data?.mass ?? 1, // Default mass
@@ -75,7 +82,7 @@ export class Physics {
 
     public static ApplyForce(object: Object3D, force: Force) {
         if (!object.userData.physicsData)
-            Physics.Init(object);
+            Physics.init(object);
         
         object.userData.physicsData.forces.push(force);
     }

@@ -20,12 +20,14 @@ export class Lighting {
   
         shadowLight.position.set(150, 350, 350);
         shadowLight.castShadow = true;
-        shadowLight.intensity = 1
+        // hemisphereLight.castShadow = true;
+        // ambientLight.castShadow = true;
+        shadowLight.intensity = 2
         shadowLight.position.set(0, 100, 0)
-        shadowLight.shadow.camera.left = -400;
-        shadowLight.shadow.camera.right = 400;
-        shadowLight.shadow.camera.top = 400;
-        shadowLight.shadow.camera.bottom = -400;
+        shadowLight.shadow.camera.left = -5000;
+        shadowLight.shadow.camera.right = 5000;
+        shadowLight.shadow.camera.top = 5000;
+        shadowLight.shadow.camera.bottom = -5000;
         shadowLight.shadow.camera.near = 1;
         shadowLight.shadow.camera.far = 10000;
         shadowLight.shadow.mapSize.width = 2048;

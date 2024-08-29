@@ -1,19 +1,29 @@
-import * as THREE from 'three';
+import { Vector3, Ray, Box3 } from 'three';
 import { VectorUtils } from '../utils/VectorUtils';
 
-self.onmessage = function(event) {
+export type ViewWorkerProps = {
+    ray: {
+        origin: Partial<Vector3>,
+        direction: Partial<Vector3>
+    },
+    entities: {
+        uuid: string,
+        boundingBox: { min: Partial<Vector3>, max: Partial<Vector3>}
+        position: Partial<Vector3>
+    }[]
+}
+
+self.onmessage = function(event: { data: ViewWorkerProps }) {
     const { ray, entities } = event.data;
 
-    // Reconstruct the Ray object
     const rayOrigin = VectorUtils.fromJson(ray.origin);
     const rayDirection = VectorUtils.fromJson(ray.direction);
-    const rayInstance = new THREE.Ray(rayOrigin, rayDirection);
+    const rayInstance = new Ray(rayOrigin, rayDirection);
 
-    // Array to hold intersected entities with their distances
     const intersectedEntities = entities.map(entity => {
         const min = VectorUtils.fromJson(entity.boundingBox.min);
         const max = VectorUtils.fromJson(entity.boundingBox.max);
-        const boundingBox = new THREE.Box3(min, max);
+        const boundingBox = new Box3(min, max);
         
         if (rayInstance.intersectsBox(boundingBox)) {
             const position = VectorUtils.fromJson(entity.position);

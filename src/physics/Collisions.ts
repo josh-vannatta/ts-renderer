@@ -30,11 +30,11 @@ export class Collision {
     public static resolveCollision(objectA: Object3D, objectB: Object3D, delta: number = 1): void {
         const physicsData = objectA.userData.physicsData as PhysicsData;
 
-        if (physicsData?.fixed) return;
+        if (!physicsData || physicsData?.fixed) return;
 
-        if (physicsData?.velocity?.length() < Collision.MIN_VELOCITY_THRESHOLD) {
+        if (physicsData.velocity.length() < Collision.MIN_VELOCITY_THRESHOLD) {
             physicsData.velocity.set(0, 0, 0);
-            return; // No need to check collisions if the object has no movement
+            return; 
         }
 
         const totalMovement = physicsData.velocity.clone().multiplyScalar(delta);
@@ -42,7 +42,6 @@ export class Collision {
         let stepDelta = delta;
         let steps = 1;
 
-        // If the object is moving fast, increase the number of sub-steps
         if (totalMovement.length() > Collision.MIN_DISTANCE_THRESHOLD) {
             steps = Math.min(Collision.MAX_SUB_STEPS, Math.ceil(totalMovement.length()));
             stepDelta = delta / steps;
@@ -50,7 +49,7 @@ export class Collision {
 
         for (let i = 0; i < steps; i++) {
             const movement = physicsData.velocity.clone().multiplyScalar(stepDelta);
-            const boxA = Collision.getBox(objectA).expandByScalar(.5).expandByVector(movement);
+            const boxA = Collision.getBox(objectA).expandByScalar(2).expandByVector(movement);
             const boxB = Collision.getBox(objectB);
 
             if (boxA.intersectsBox(boxB)) {
@@ -68,8 +67,9 @@ export class Collision {
                     if (relevantIntersections.length > 0) {
                         const intersection = relevantIntersections[0];
 
-                        if (intersection.distance < 0.5) 
-                            Collision.handleCollision(objectA, intersection);
+                        Collision.handleCollision(objectA, intersection);
+
+                        continue
                     }
                 }
             }
@@ -82,13 +82,10 @@ export class Collision {
 
     private static handleCollision(objectA: Object3D, intersection: Intersection): void {
         const collisionNormal = intersection.face?.normal.clone().normalize() ?? Collision.getVector();
-        const physicsData = objectA.userData.physicsData;
+        const physicsData = objectA.userData.physicsData as PhysicsData;
 
-        if (physicsData && physicsData.velocity) {
-            physicsData.velocity.reflect(collisionNormal);
-            physicsData.velocity.multiplyScalar(0.8);
-            objectA.position.addScaledVector(collisionNormal, 0.05);
-            Collision.releaseVector(collisionNormal);
-        }
+        physicsData.velocity.reflect(collisionNormal);
+        physicsData.velocity.multiplyScalar(0.8);
+        Collision.releaseVector(collisionNormal);
     }
 }
