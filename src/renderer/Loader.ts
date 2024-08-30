@@ -1,7 +1,7 @@
 import {  Color, Group, Object3D, Vector3 } from 'three';
 import { Font, FontLoader, GLTF, GLTFLoader, SkeletonUtils } from 'three/examples/jsm/Addons.js';
 import { AssetRecord } from '../utils/AssetRegister';
-import { MeshUtils } from '../utils/MeshUtils';
+import { ObjectUtils } from '../utils/ObjectUtils';
 
 export interface AssetOptions { 
     position?: Vector3,
@@ -179,7 +179,7 @@ export class Loader {
                     scene.rotateY(rotation ?? 0);
 
                     if (options.color)
-                        MeshUtils.setColor(scene, options.color)
+                        ObjectUtils.setColor(scene, options.color)
                 }                
                 
                 modelsLoaded++;

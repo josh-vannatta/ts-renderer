@@ -46,11 +46,12 @@ export class InstanceCollection extends RenderedEntity implements IsInteractive 
             this.mesh.geometry.attributes.color.setXYZ(i, 0,0,0);
         }
 
+        this._entities.forEach(entity => {
+            if (!!entity) this.addInstance(entity)
+        });
         this.empties = this.empties.reverse();
+        
         this.needsUpdate();
-
-        // Add existing entities
-        this._entities.forEach(entity => entity ? this.addInstance(entity): null);
     }
 
     public override add(...object: (Object3D | undefined)[]): this {

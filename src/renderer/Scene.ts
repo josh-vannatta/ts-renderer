@@ -17,7 +17,16 @@ export class Scene {
         return this._scene;
     }
 
-    public reset() {}
+    protected onClear() {
+
+    }
+
+    public clear() {
+        this.onClear();
+        this._scene.clear();
+        this.entities = []
+        this.activeEntities = []
+    }
 
     public light(lighting: Lighting) {
         lighting.lights.forEach(light => this._scene.add(light));

@@ -14,6 +14,9 @@ export class Collision {
     }
 
     private static getBox(object: Object3D): Box3 {
+        if (object.userData.boundingBox)
+            return object.userData.boundingBox as Box3;
+
         return (this.boxPool.pop() || new Box3()).setFromObject(object);
     }
 

@@ -5,7 +5,7 @@ import { EventSource } from '../utils/EventSource';
 import { IsInteractive, RenderedEntity, ViewInteractions } from './RenderedEntity';
 import { VectorUtils } from '../utils/VectorUtils';
 import { ViewWorkerProps } from '../workers/view.worker';
-import { MeshUtils } from '../utils/MeshUtils';
+import { ObjectUtils } from '../utils/ObjectUtils';
 
 type ViewAction =  'resize' | 'click' |'mousemove' | 'hover' | 'mousedown' | 'mouseup' | 'keydown' | 'keyup' |'scroll';
 type ViewCallback = (event?: MouseEvent | KeyboardEvent) => void;
@@ -167,7 +167,7 @@ export class View implements IView {
                 origin: VectorUtils.toJson(this.pointer.raycaster.ray.origin),
                 direction: VectorUtils.toJson(this.pointer.raycaster.ray.direction),
             },
-            entities: entities.map(MeshUtils.toJson),
+            entities: entities.map(ObjectUtils.toJson),
         }
 
         this.worker.postMessage(message);

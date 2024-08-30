@@ -125,7 +125,8 @@ abstract class Render<RenderedScene extends Scene> implements IRender<RenderedSc
 
     public stop(): void {
         this.scene.instance.clear();
-        this.scene.reset();
+        this.scene.clear();
+        this.controllers.forEach(c => c.destroy());
         this.isPaused = false;
     }
     

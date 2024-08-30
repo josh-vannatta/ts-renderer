@@ -1,18 +1,17 @@
-import { BoxGeometry, Clock, Color, Mesh, MeshBasicMaterial, MeshPhongMaterial, SphereGeometry, Vector3 } from 'three';
+import { BoxGeometry, Clock, Color, Mesh, MeshPhongMaterial, Vector3 } from 'three';
+import { ForceDirectedField, Gravity } from '../../physics/Force';
 import { ParticleSystem } from '../../physics/Particles';
+import { Physics, PhysicsEngine } from '../../physics/Physics';
 import { Controller } from '../../renderer/Controller';
+import { InstanceCollection } from '../../renderer/InstancedEntity';
 import { VectorUtils } from '../../utils/VectorUtils';
 import { PointData } from '../ExampleApp';
 import { ExampleScene } from '../ExampleScene';
 import { Background, BackgroundSize } from '../entities/Background';
 import { Ball } from '../entities/Ball';
-import { Instance, InstanceCollection } from '../../renderer/InstancedEntity';
-import { Physics } from '../../physics/Physics';
-import { Gravity } from '../../physics/Gravity';
-import { ForceDirectedField } from '../../physics/Force';
 
 export class ExampleController extends Controller {
-    private physics: Physics;
+    private physics: PhysicsEngine;
 
     constructor(
         private _data: PointData[],
@@ -21,15 +20,21 @@ export class ExampleController extends Controller {
 
     public setup() { 
         Ball.radius = 1;
-        this.physics = new Physics();
+        this.physics = new PhysicsEngine({ collisions: true });
     }
 
     public onInit() {         
         const background = new Background(BackgroundSize.Moderate, 20);
+        
+        this._scene.add(background);
+        this.initBallScene();
+    }
+
+    public initParticleScene() {
         const particleSystem = new ParticleSystem();
 
         for (let i = 0; i < 100; i++) {
-            const position = VectorUtils.random(10)
+            const position = new Vector3()
 
             setTimeout(() => {
                 for (let i = 0; i < 100; i++) {
@@ -43,7 +48,8 @@ export class ExampleController extends Controller {
             }, 1000 * i)
         }
 
-        this._scene.add(background, particleSystem);
+        this._scene.add(particleSystem);
+
     }
 
     public initBallScene() {
@@ -51,27 +57,36 @@ export class ExampleController extends Controller {
             new BoxGeometry(100, 2, 100, 10, 10),
             new MeshPhongMaterial({ color: "rgb(0,100,150)"})
         );
-        const balls = new Array(50).fill(null).map(e => new Ball());
-        const instances = new InstanceCollection([], Ball.Instance);
-
-        this.physics.addForce(new Gravity(), new ForceDirectedField(balls, Ball.radius * 2));
+        const balls = new Array(1).fill(null).map(e => new Ball());
+        const instances = new InstanceCollection([], Ball.Instance, 1000);
+        const forceDirected = new ForceDirectedField({ amplitude: Ball.radius * 2 });
 
         Physics.init(ground, { collisions: true, fixed: true });
 
+        this.physics.addForce(forceDirected);
         ground.position.y = -20
-
-        balls.forEach((ball, i) => {
-            setTimeout(() => {
-                ball.position.copy(VectorUtils.random(1))
-                this.physics.add(ball);
-                instances.addInstance(ball)
-            }, (100 * i))
-        });
-
+        
+        // balls.forEach((ball, i) => {
+        //     setTimeout(() => {
+        //         ball.position.copy(VectorUtils.random(.2))
+        //         instances.add(ball)
+        //         forceDirected.addObject(ball)
+        //         this.physics.add(ball)
+        //     }, 10 * i) 
+        // });
+        
+        this.physics.addForce(new Gravity())
         this._scene.add(ground, instances);
+        this.physics.add(ground);
+
+        console.log(Physics.serialize(ground))
     }
 
     protected onUpdate(clock: Clock): void {
-        this.physics.update(clock);
+        this.physics.update();
+    }
+
+    protected onDestroy(): void {
+        this.physics.dispose();
     }
 }

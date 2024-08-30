@@ -10,9 +10,14 @@ export abstract class Controller {
     public abstract onInit()
 
     protected onUpdate(clock: Clock) {} 
+    protected onDestroy() {}
     public onCommand() {}
     public update(clock: Clock) {
         this.onUpdate(clock);
+    }
+
+    public destroy() {
+        this.onDestroy();
     }
 
     protected playAnimation(model, name: string) {

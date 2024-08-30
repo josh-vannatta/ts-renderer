@@ -1,18 +1,42 @@
 import { Box3, Group, Mesh, MeshStandardMaterial, Object3D, Scene, Vector3 } from "three";
 import { VectorUtils } from "./VectorUtils";
 
-export class MeshUtils {
+
+export type ObjectJSON = {
+    uuid: string,
+    position: Partial<Vector3>,
+    boundingBox: { min: Partial<Vector3>, max: Partial<Vector3>},
+}
+
+export class ObjectRef {
+    public uuid: string;
+    public position: Vector3;
+    public boundingBox: Box3;
+    public userData: any;
+
+    constructor(opts: ObjectJSON) {
+        this.uuid = opts.uuid;
+        this.position = VectorUtils.fromJson(opts.position)
+        this.boundingBox = new Box3(
+            VectorUtils.fromJson(opts.boundingBox.min),
+            VectorUtils.fromJson(opts.boundingBox.max),
+        );
+        this.userData = {};
+    }
+}
+
+export class ObjectUtils {
     public static box = new Box3()
 
-    public static toJson(object: Object3D) {
-        MeshUtils.box.makeEmpty();
-        MeshUtils.box.setFromObject(object);
+    public static toJson(object: Object3D): ObjectJSON {
+        ObjectUtils.box.makeEmpty();
+        ObjectUtils.box.setFromObject(object);
 
         return {
             uuid: object.uuid,
             boundingBox: {
-                min: VectorUtils.toJson(MeshUtils.box.min),
-                max: VectorUtils.toJson(MeshUtils.box.max),
+                min: VectorUtils.toJson(ObjectUtils.box.min),
+                max: VectorUtils.toJson(ObjectUtils.box.max),
             },
             position: VectorUtils.toJson(object.position),
         }
@@ -43,7 +67,7 @@ export class MeshUtils {
         let children = new Vector3(1,1,1);
     
         mesh.children.forEach((child: any)  => {
-            const cb: Vector3 = MeshUtils.getBounding(child);
+            const cb: Vector3 = ObjectUtils.getBounding(child);
 
             if (cb.x > children.x)
                 children.x += cb.x;
