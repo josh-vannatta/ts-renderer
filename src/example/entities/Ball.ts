@@ -3,16 +3,10 @@ import { Instance, InstancedEntity } from '../../renderer/InstancedEntity';
 import { IsInteractive, RenderedEntity } from '../../renderer/RenderedEntity';
 import { PointData } from '../ExampleApp';
 
-// Create the ball instance
-const ballGeometry = new SphereGeometry(0.5, 32, 32);
-const ballMaterial = new MeshToonMaterial({ color: 0xff6347 }); // Tomato red ball
-const ballInstance = new Instance(ballGeometry, ballMaterial);
-
 // Create the ball entity
 export class Ball extends RenderedEntity implements IsInteractive, InstancedEntity {
-    public instance: Instance = ballInstance;
+    public instance: Instance = Ball.Instance;
     public data: PointData = new PointData()
-    public velocity: Vector3 = new Vector3(0, 0, 0);
     public static radius = 1;
 
     constructor(public size = Ball.radius) {
@@ -29,7 +23,6 @@ export class Ball extends RenderedEntity implements IsInteractive, InstancedEnti
             new SphereGeometry(this.size, seg, seg),
             new MeshPhongMaterial({ color: 0xff6347 })
         ))
-        
     }
 
     public onUpdate(clock: Clock): void { }

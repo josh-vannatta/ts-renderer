@@ -56,6 +56,8 @@ export class Collision {
             const boxB = Collision.getBox(objectB);
 
             if (boxA.intersectsBox(boxB)) {
+                console.log("intersct")
+
                 const direction = movement.clone().normalize();
                 
                 Collision.raycaster.set(objectA.position, direction);
