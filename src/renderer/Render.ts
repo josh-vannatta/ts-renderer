@@ -307,6 +307,8 @@ abstract class Render<RenderedScene extends Scene> implements IRender<RenderedSc
 
     protected register(...controllers: Controller[]) {
         controllers.forEach(controller => {
+            controller.gl = this.renderer.gl;
+
             if (!this.controllers.includes(controller))
                 this.controllers.push(controller);
         });

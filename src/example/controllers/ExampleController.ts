@@ -1,7 +1,7 @@
 import { BoxGeometry, Clock, Color, Mesh, MeshPhongMaterial, Vector3 } from 'three';
 import { ForceDirectedField, Gravity } from '../../physics/Force';
 import { ParticleSystem } from '../../physics/Particles';
-import { Physics, PhysicsEngine } from '../../physics/Physics';
+import { Physics } from '../../physics/Physics';
 import { Controller } from '../../renderer/Controller';
 import { InstanceCollection } from '../../renderer/InstancedEntity';
 import { VectorUtils } from '../../utils/VectorUtils';
@@ -9,7 +9,7 @@ import { PointData } from '../ExampleApp';
 import { ExampleScene } from '../ExampleScene';
 import { Background, BackgroundSize } from '../entities/Background';
 import { Ball } from '../entities/Ball';
-import { Brick } from '../entities/Brick';
+import { Terrain } from '../entities/Terrain';
 
 export class ExampleController extends Controller {
     private physics: Physics;
@@ -28,7 +28,7 @@ export class ExampleController extends Controller {
         const background = new Background(BackgroundSize.Moderate, 20);
         
         this._scene.add(background);
-        this.initBrickScene();
+        // this.initBrickScene();
     }
 
     public initParticleScene() {
@@ -84,50 +84,7 @@ export class ExampleController extends Controller {
     }
 
     public initBrickScene() {
-        
-        const ground = new Mesh(
-            new BoxGeometry(100, 2, 100, 10, 10),
-            new MeshPhongMaterial({ color: "rgb(0,100,150)"})
-        );
-
-        // const ball = new Ball();
-
-        // ground.position.y = -20;
-        // Physics.init(ground, { fixed: true })
-
-        // for (let x = 0; x < 10; x++) {
-        //     for (let y = 0; y < 5; y++) {
-
-        //         const brick = new Brick();
-        
-        //         brick.position.y = -18 + y*2;
-        //         brick.position.x = x * 2 -5;
-    
-        //         this._scene.add(brick)
-        //         this.physics.add(brick);
-        //     }
-        // }
-
-
-        // const repel = new ForceDirectedField({});
-
-        // repel.addObject(brick, ground)
-
-        // ball.position.y = -10;
-        // ball.position.x = 0;
-        // ball.position.z = 10;
-        
-        // Physics.init(ball, { velocity: new Vector3(0, 0,-20), mass: 1})
-
-        // this._scene.add(ground, ball);
-        // this.physics.add(ground, ball);
-
-        let brick = new Brick();
-
-        brick.position.y = 5;
-
-        this._scene.add(brick, ground)
-        // this.physics.addForce(new Gravity())
+        this._scene.add(new Terrain());
     }
 
     protected onUpdate(clock: Clock): void {

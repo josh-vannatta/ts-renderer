@@ -3,6 +3,7 @@ import { Render } from './Render';
 
 export abstract class Controller {    
     private parent?: Render<any>;
+    public gl: WebGL2RenderingContext | WebGLRenderingContext;
     public animations: any[] = [];
     public streams: string[] = [];
 

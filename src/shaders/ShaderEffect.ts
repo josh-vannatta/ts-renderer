@@ -1,6 +1,6 @@
 // ShaderEffect.ts
 import * as THREE from 'three';
-import { FragmentShaderBuilder, GLSLBuilder, GLSLUniforms, GLSLVaryings, VertexShaderBuilder } from './GLSLBuilder';
+import { FragmentShaderBuilder, GLSLUniforms, GLSLVaryings, VertexShaderBuilder } from './GLSLBuilder';
 
 type Param = string | number;
 
@@ -73,6 +73,7 @@ export abstract class ShaderEffect  {
 
         if (this.uniforms[name]) {
             this.uniforms[name].value = value;
+            this.uniforms[name].value.needsUpdate = true;
         } else {
             console.warn(`Uniform ${name} does not exist.`);
         }
@@ -96,6 +97,10 @@ export abstract class ShaderEffect  {
 
     setColor(x: Param) {
         return `builder_setColor(${this.formatParam(x)}, ${this.index})`
+    }
+
+    setPosition(x: Param) {
+        return `builder_setPosition(${this.formatParam(x)}, ${this.index})`
     }
 
     // Mathematical functions

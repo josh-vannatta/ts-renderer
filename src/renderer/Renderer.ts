@@ -15,7 +15,7 @@ export class Renderer {
         powerPreference: "high-performance",
         gammaOutput: true 
     }
-    private renderer: WebGLRenderer;
+    private webGL: WebGLRenderer;
     public clock: Clock;
     public delta: number;
     private animations: Array<Clip> = [];
@@ -24,13 +24,17 @@ export class Renderer {
     public parent: HTMLElement;
 
     constructor(opts: WebGLRendererParameters = Renderer.BASIC_SETUP) {        
-        this.renderer = new WebGLRenderer(opts);
-        this.renderer.setClearColor( 0x000000, 0);
+        this.webGL = new WebGLRenderer(opts);
+        this.webGL.setClearColor( 0x000000, 0);
         this.clock = new Clock();
-        this.canvas = this.renderer.domElement;
-        this.renderer.shadowMap.enabled = true;
-        this.renderer.shadowMap.type = PCFSoftShadowMap;
+        this.canvas = this.webGL.domElement;
+        this.webGL.shadowMap.enabled = true;
+        this.webGL.shadowMap.type = PCFSoftShadowMap;
         this.delta = 0;
+    }
+
+    public get gl() {
+        return this.webGL.getContext();
     }
 
     public unbind(element: HTMLElement) {
@@ -53,7 +57,7 @@ export class Renderer {
     }
 
     public update() {
-        this.renderer.setSize(
+        this.webGL.setSize(
             this.canvas.clientWidth,
             this.canvas.clientHeight
         );
@@ -86,10 +90,10 @@ export class Renderer {
         // this.postProcessing.forEach(process => {
         //     process.render(scene, camera.getAll());
         // })
-        this.renderer.render(scene.instance, camera.lense);
+        this.webGL.render(scene.instance, camera.lense);
     }
 
     public get webGl() {
-        return this.renderer;
+        return this.webGL;
     }
 }

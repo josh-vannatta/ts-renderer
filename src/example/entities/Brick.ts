@@ -14,9 +14,6 @@ export class Brick extends RenderedEntity implements IsInteractive {
             new LightingShader(),
         )
 
-        console.log(composite.vertex)
-        console.log(composite.fragment)
-
         this.add(new Mesh(geometry, composite.material));
 
         this.physicsData = {
@@ -46,7 +43,7 @@ export class BrickShader extends ShaderEffect {
     getVertexShader(): string {
         return `
             vUv = uv;
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            ${this.setPosition(`projectionMatrix * modelViewMatrix * vec4(position, 1.0)`)};
         `;
     }
 
