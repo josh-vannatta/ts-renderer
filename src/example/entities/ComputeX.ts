@@ -1,64 +1,36 @@
+import { Color, Matrix4, Vector2, Vector3, Vector4 } from "three";
 import { ComputeShader } from "../../shaders/ComputeShader";
+import { GLSLStruct, GLSLStructParams, GLSLType } from "../../shaders/GLSLBuilder";
 
 export class X {
-    constructor(public value: number, public other: number) {}
+    constructor(
+        public value: Vector4 = new Vector4(1,2,3,4), 
+        public value1: Vector3 = new Vector3(1,2,3),
+        public value2: Matrix4 = new Matrix4(
+            1,2,3,4,
+            5,6,7,8,
+            9,10,11,12,
+            13,14,15,16
+        )
+    ) {}
 }
 
-export class ComputeXShader extends ComputeShader<X[]> {
-    
-    protected serialize(data: X[]): Float32Array {
-        const floatData = new Float32Array(data.length * 4);  // RGBA format
+export class ComputeXShader extends ComputeShader<X> {
+    constructor(data: X[]) {
+        const struct = new GLSLStruct("X", {
+            value: GLSLType.Vec4,
+            value1: GLSLType.Vec3,
+            value2: GLSLType.Mat4
+        })
 
-        data.forEach((x, index) => {
-            // Normalize the values to be between 0 and 1
-            floatData[index * 4] = x.value;
-            floatData[index * 4 + 1] = x.other;
+        super(data, struct);
+
+        this.shader.addUniforms({
+            x: { value: 5 }
         });
 
-        return floatData;
-    }
-
-    protected deserialize(data: Float32Array): X[] {
-        const result: X[] = [];
-        for (let i = 0; i < data.length; i += 4) {
-            // Denormalize the values back to the original range
-            result.push(new X(data[i], data[i + 1]));
-        }
-        return result;
-    }
-
-    protected getShader(): string {
-        return `
-            precision highp float;
-            uniform sampler2D u_input;
-            varying vec2 v_texCoord;
-        
-            struct X {
-                float value;
-                float other;
-            };
-        
-            X decode(vec4 encodedData) {
-                X data;
-                data.value = encodedData.r;  // Values are already normalized between 0 and 1
-                data.other = encodedData.g;
-                return data;
-            }
-        
-            vec4 encode(X data) {
-                return vec4(data.value, data.other, 0.0, 1.0);
-            }
-        
-            void main() {
-                vec4 encodedData = texture2D(u_input, v_texCoord);
-                X data = decode(encodedData);
-        
-                // Modify data (for testing, modify values)
-                data.value += 1.0;
-                data.other += 1.0;
-        
-                gl_FragColor = encode(data);
-            }
-        `;
+        this.setProgram(() => `
+            data.value.x = x; 
+        `);
     }
 }

@@ -1,4 +1,4 @@
-import { BoxGeometry, Clock, Color, Mesh, MeshPhongMaterial, Vector3 } from 'three';
+import { BoxGeometry, Clock, Color, Mesh, MeshPhongMaterial, Vector2, Vector3, Vector4 } from 'three';
 import { ForceDirectedField, Gravity } from '../../physics/Force';
 import { ParticleSystem } from '../../physics/Particles';
 import { Physics } from '../../physics/Physics';
@@ -9,10 +9,12 @@ import { PointData } from '../ExampleApp';
 import { ExampleScene } from '../ExampleScene';
 import { Background, BackgroundSize } from '../entities/Background';
 import { Ball } from '../entities/Ball';
+import { ComputeXShader, X } from '../entities/ComputeX';
 import { Terrain } from '../entities/Terrain';
 
 export class ExampleController extends Controller {
     private physics: Physics;
+    private compute: ComputeXShader;
 
     constructor(
         private _data: PointData[],
@@ -28,7 +30,14 @@ export class ExampleController extends Controller {
         const background = new Background(BackgroundSize.Moderate, 20);
         
         this._scene.add(background);
-        // this.initBrickScene();
+        this.initBrickScene();
+4
+        const data = new Array(4).fill(null).map(n => new X())
+
+        this.compute = new ComputeXShader(data);
+        this.compute.run()
+
+        console.log(this.compute.readData())
     }
 
     public initParticleScene() {

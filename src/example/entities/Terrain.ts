@@ -8,7 +8,7 @@ export class Terrain extends RenderedEntity {
     public onCreate(): void {
         const shader = new CompositeShader(
             new LandscapeShader(),
-            new LightingShader()
+            // new LightingShader()
         );
 
         const geometry = new THREE.PlaneGeometry(100, 100, 256, 256); 

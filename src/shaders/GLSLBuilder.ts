@@ -1,20 +1,19 @@
-import dedent from "dedent-js";
 import * as THREE from "three";
-
 
 export type GLSLUniforms = { [key: string]: THREE.IUniform };
 export type GLSLVaryings = { [key: string]: any }
+export type GLSLStructParams = { [key: string]: (GLSLType | GLSLStruct) };
 
  // GLSLTypes.ts
 export enum GLSLType {
     Float = 'float',
+    Int = 'int',
+    UInt = 'uint',
     Vec2 = 'vec2',
     Vec3 = 'vec3',
     Vec4 = 'vec4',
     Mat3 = 'mat3',
     Mat4 = 'mat4',
-    Int = 'int',
-    UInt = 'uint',
     Sampler2D = 'sampler2D',
     SamplerCube = 'samplerCube',
     Bool = 'bool',
@@ -22,23 +21,23 @@ export enum GLSLType {
 }
 
 export class GLSLParam {
-    constructor(public type: GLSLType, public name: string) {}
+    constructor(public type: GLSLType | string, public name: string, public DEFAULT: any = "") {}
 
-    public static Float(name: string) { return new GLSLParam(GLSLType.Float, name)}
-    public static Vec2(name: string) { return new GLSLParam(GLSLType.Vec2, name)}
-    public static Vec3(name: string) { return new GLSLParam(GLSLType.Vec3, name)}
-    public static Vec4(name: string) { return new GLSLParam(GLSLType.Vec4, name)}
-    public static Mat3(name: string) { return new GLSLParam(GLSLType.Mat3, name)}
-    public static Mat4(name: string) { return new GLSLParam(GLSLType.Mat4, name)}
-    public static Int(name: string) { return new GLSLParam(GLSLType.Int, name)}
-    public static UInt(name: string) { return new GLSLParam(GLSLType.UInt, name)}
-    public static Sampler2D(name: string) { return new GLSLParam(GLSLType.Sampler2D, name)}
-    public static SamplerCube(name: string) { return new GLSLParam(GLSLType.SamplerCube, name)}
-    public static Bool(name: string) { return new GLSLParam(GLSLType.Bool, name)}
+    public static Float(name: string = "")       { return new GLSLParam(GLSLType.Float,      name, 0.01)}
+    public static Int(name: string = "")         { return new GLSLParam(GLSLType.Int,        name, 0)}
+    public static UInt(name: string = "")        { return new GLSLParam(GLSLType.UInt,       name, 0)}
+    public static Vec2(name: string = "")        { return new GLSLParam(GLSLType.Vec2,       name, new THREE.Vector2())}
+    public static Vec3(name: string = "")        { return new GLSLParam(GLSLType.Vec3,       name, new THREE.Vector3())}
+    public static Vec4(name: string = "")        { return new GLSLParam(GLSLType.Vec4,       name, new THREE.Vector4())}
+    public static Mat3(name: string = "")        { return new GLSLParam(GLSLType.Mat3,       name, new Array(9).fill(0))}
+    public static Mat4(name: string = "")        { return new GLSLParam(GLSLType.Mat4,       name, new Array(16).fill(0))}
+    public static Sampler2D(name: string = "")   { return new GLSLParam(GLSLType.Sampler2D,  name, "")}
+    public static SamplerCube(name: string = "") { return new GLSLParam(GLSLType.SamplerCube,name, "")}
+    public static Bool(name: string = "")        { return new GLSLParam(GLSLType.Bool,       name, false)}
 }
 
 export class GLSLFunction {
-    public returnType: GLSLType;
+    public returnType: GLSLType | string;
     public name: GLSLName;
     public params: GLSLParam[];
     public body: GLSLBody;
@@ -78,13 +77,187 @@ export class GLSLBody {
     }
 }
 
+export class GLSLStruct {
+    constructor(
+        public name: string, 
+        public definition: GLSLStructParams
+    ) {}
+
+    /**
+     * Recursively calculate how many vec4s (layouts) are needed based on the number of properties.
+     * This will handle both flat and nested structs, with different sizes for each GLSLType.
+     */
+    getVec4Count(): number {
+        let count = 0;
+
+        for (const key in this.definition) {
+            const value = this.definition[key];
+            if (value instanceof GLSLStruct) {
+                count += value.getVec4Count();  // Recursively calculate for nested structs
+            } else {
+                count += this.getTypeSize(value);  // Add the size based on the type
+            }
+        }
+
+        return Math.ceil(count / 4);  // One vec4 can hold 4 floats
+    }
+
+    /**
+     * Serialize the object recursively into a Float32Array, based on the type of each field.
+     */
+    serialize(data: any): Float32Array {
+        const arrayLength = this.getVec4Count() * 4;  // Number of floats
+        const floatArray = new Float32Array(arrayLength);
+        let index = 0;
+
+        for (const key in this.definition) {
+            const value = this.definition[key];
+            if (value instanceof GLSLStruct) {
+                const nestedArray = value.serialize(data[key]);
+                nestedArray.forEach((val: number) => floatArray[index++] = val);
+            } else {
+                index = this.serializeField(floatArray, index, data[key], value);
+            }
+        }
+
+        return floatArray;
+    }
+
+    /**
+     * Deserialize the Float32Array back into the object recursively, based on the type of each field.
+     */
+    deserialize(floatArray: Float32Array): any {
+        const data: any = {};
+        let index = 0;
+
+        for (const key in this.definition) {
+            const value = this.definition[key];
+            if (value instanceof GLSLStruct) {
+                const subArray = floatArray.subarray(index, index + value.getVec4Count() * 4);
+                data[key] = value.deserialize(subArray);
+                index += subArray.length;
+            } else {
+                [data[key], index] = this.deserializeField(floatArray, index, value);
+            }
+        }
+
+        return data;
+    }
+
+    /**
+     * Return the size (in floats) of a GLSLType.
+     */
+    private getTypeSize(type: GLSLType): number {
+        switch (type) {
+            case GLSLType.Float:
+            case GLSLType.Int:
+            case GLSLType.UInt:
+            case GLSLType.Bool:
+                return 1;
+            case GLSLType.Vec2:
+                return 2;
+            case GLSLType.Vec3:
+                return 3;
+            case GLSLType.Vec4:
+                return 4;
+            case GLSLType.Mat3:
+                return 9;
+            case GLSLType.Mat4:
+                return 16;
+            default:
+                throw new Error(`Unsupported GLSL type: ${type}`);
+        }
+    }
+
+    /**
+     * Serialize a single field into the Float32Array based on its GLSLType.
+     */
+    private serializeField(floatArray: Float32Array, index: number, value: any, type: GLSLType): number {
+        switch (type) {
+            case GLSLType.Float:
+            case GLSLType.Int:
+            case GLSLType.UInt:
+            case GLSLType.Bool:
+                floatArray[index++] = value;
+                break;
+            case GLSLType.Vec2:
+                floatArray[index++] = value.x;
+                floatArray[index++] = value.y;
+                break;
+            case GLSLType.Vec3:
+                floatArray[index++] = value.x;
+                floatArray[index++] = value.y;
+                floatArray[index++] = value.z;
+                break;
+            case GLSLType.Vec4:
+                floatArray[index++] = value.x;
+                floatArray[index++] = value.y;
+                floatArray[index++] = value.z;
+                floatArray[index++] = value.w;
+                break;
+            case GLSLType.Mat3:
+                for (let i = 0; i < 9; i++) {
+                    floatArray[index++] = value.elements[i];
+                }
+                break;
+            case GLSLType.Mat4:
+                for (let i = 0; i < 16; i++) {
+                    floatArray[index++] = value.elements[i];
+                }
+                break;
+            default:
+                throw new Error(`Unsupported GLSL type: ${type}`);
+        }
+        return index;
+    }
+
+    /**
+     * Deserialize a single field from the Float32Array based on its GLSLType.
+     */
+    private deserializeField(floatArray: Float32Array, index: number, type: GLSLType): [any, number] {
+        let value: any;
+
+        switch (type) {
+            case GLSLType.Float:
+            case GLSLType.Int:
+            case GLSLType.UInt:
+            case GLSLType.Bool:
+                value = floatArray[index++];
+                break;
+            case GLSLType.Vec2:
+                value = { x: floatArray[index++], y: floatArray[index++] };
+                break;
+            case GLSLType.Vec3:
+                value = { x: floatArray[index++], y: floatArray[index++], z: floatArray[index++] };
+                break;
+            case GLSLType.Vec4:
+                value = { x: floatArray[index++], y: floatArray[index++], z: floatArray[index++], w: floatArray[index++] };
+                break;
+            case GLSLType.Mat3:
+                value = { elements: floatArray.slice(index, index + 9) };
+                index += 9;
+                break;
+            case GLSLType.Mat4:
+                value = { elements: floatArray.slice(index, index + 16) };
+                index += 16;
+                break;
+            default:
+                throw new Error(`Unsupported GLSL type: ${type}`);
+        }
+
+        return [value, index];
+    }
+}
+
 export class GLSLBuilder {
     protected _attributes: string[] = [];
     protected _uniforms: string[] = [];
     protected _varyings: string[] = [];
     protected _functions: string[] = [];
+    protected _structs: string[] = [];
     protected _mainBody: GLSLBody[] = [];
     protected _maxEffects: number = 1;
+    private _structNames: Record<string, boolean> = {};
     public index: number = 0;
 
     setMaxEffects(max: number) {
@@ -136,6 +309,34 @@ export class GLSLBuilder {
         return this;
     }
 
+    addStruct<T extends GLSLStruct>(struct: T): this {
+        const structName = struct.name;
+
+        if (this._structNames[structName])
+            return this;
+        
+        let structString = `struct ${structName} {\n`;
+
+        for (const key in struct.definition) {
+            const paramType = struct.definition[key];
+
+            if (paramType instanceof GLSLStruct) {
+                // Recursively add nested struct definitions
+                this.addStruct(paramType as GLSLStruct);
+                structString += `    ${paramType.name} ${key};\n`; // Use the nested struct name
+            } else {
+                structString += `    ${paramType} ${key};\n`;
+            }
+        }
+
+        structString += `};\n`;
+
+        this._structs.push(structString);
+        this._structNames[structName] = true;
+        
+        return this;
+    }
+
     getType(value: any): GLSLType {
         if (value instanceof THREE.Color) return GLSLType.Vec3;
         if (value instanceof THREE.Vector2) return GLSLType.Vec2;
@@ -151,7 +352,9 @@ export class GLSLBuilder {
     }
 
     build() : string {
-        return this.autoIndentGLSL(`
+        return this.autoFormat(`
+            ${this._structs.join('\n')}
+            
             ${this._attributes.join('\n')}
             ${this._uniforms.join('\n')}
             ${this._varyings.join('\n')}
@@ -163,11 +366,14 @@ export class GLSLBuilder {
         `);
     }
 
-    autoIndentGLSL(code: string) {
-        const lines = code.split('\n');
+    autoFormat(code: string) {
+        let lines = code.split('\n');
 
         let indentLevel = 0;
-        
+
+        if (lines.length > 0 && lines[0].length == 0)
+            lines.shift()
+            
         const indentSize = 4; // Number of spaces per indent level
         const indentedLines = lines.map((line) => {
             let trimmedLine = line.trim();
@@ -197,15 +403,18 @@ export class FragmentShaderBuilder extends GLSLBuilder {
     }
 
     build(): string {
-        return this.autoIndentGLSL(`
+        return this.autoFormat(`
             const int MAX_EFFECTS = ${this._maxEffects};
             vec4 builder_colors[MAX_EFFECTS];
             uint builder_sampleMask[MAX_EFFECTS];
+            
+            ${this._structs.join('\n')}
 
             precision mediump float;
             varying vec2 vUv;
             varying vec3 vNormal;
             ${this._varyings.join('\n')}
+            ${this._attributes.join('\n')}
             ${this._uniforms.join('\n')}
             ${this._functions.join('\n')}
 
@@ -325,16 +534,19 @@ export class VertexShaderBuilder extends GLSLBuilder {
     }
 
     build(): string {
-        return this.autoIndentGLSL(`
+        return this.autoFormat(`
             const int MAX_EFFECTS = ${this._maxEffects};
             vec4 builder_positions[MAX_EFFECTS];  
             float builder_pointSizes[MAX_EFFECTS];
+            
+            ${this._structs.join('\n')}
 
             precision mediump float;
             varying vec2 vUv;
             varying vec3 vNormal;
-            ${this._uniforms.join('\n')}
             ${this._varyings.join('\n')}
+            ${this._attributes.join('\n')}
+            ${this._uniforms.join('\n')}
             ${this._functions.join('\n')}
 
             void main() {
@@ -486,6 +698,5 @@ export class VertexShaderBuilder extends GLSLBuilder {
                 gl_CullDistance[index] = composedCullDistance;
             `)
         });
-        
     }
 }

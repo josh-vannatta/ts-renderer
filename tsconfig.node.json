@@ -6,6 +6,7 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "allowSyntheticDefaultImports": true,
+    "types": ["@webgpu/types"],
     "strict": true,
     "noEmit": true
   },
