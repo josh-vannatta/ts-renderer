@@ -29,8 +29,10 @@ export class ComputeXShader extends ComputeShader<X> {
             x: { value: 5 }
         });
 
-        this.setProgram(() => `
-            data.value.x = x; 
+        this.setProgram((data) => `
+            ${data}.value1.x += 1.0;
+            ${data}.value1.y += 1.0;
+            ${data}.value1.z += 1.0;
         `);
     }
 }

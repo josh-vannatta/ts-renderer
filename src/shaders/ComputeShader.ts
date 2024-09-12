@@ -1,3 +1,4 @@
+import { ArrayUtils } from "../utils/ArrayUtils";
 import { GLSLBuilder, GLSLStruct, GLSLType } from "./GLSLBuilder";
 
 class ComputeShaderBuilder extends GLSLBuilder {
@@ -5,38 +6,40 @@ class ComputeShaderBuilder extends GLSLBuilder {
         super();
     }
 
-    public get fragment() {        
-        const vec4Count = this.struct.getVec4Count();  
-
+    public get fragment() {
+        const vec4Count = this.struct.getVec4Count();
+    
         let layouts = '';
         let layoutInit = '';
-
+        let uniforms = '';
+        
         for (let i = 0; i < vec4Count; i++) {
             layouts += `layout(location = ${i}) out vec4 fragData${i};\n`;
-            layoutInit += `fragData${i} = vec4(0.0, 0.0, 0.0, 0.0);\n`
+            layoutInit += `fragData${i} = vec4(0.0, 0.0, 0.0, 0.0);\n`;
+            uniforms += `uniform sampler2D u_input${i};\n`;
         }
-
+    
         return this.autoFormat(`
             #version 300 es
-
+    
             // CONFIGURATION
             precision highp float;
-            uniform sampler2D u_input;
             float u_textureWidth = ${vec4Count * 4}.0;
             in vec2 v_texCoord;
-
+    
             // STRUCTS
             ${this._structs.join('\n')}
             
             // LAYOUTS
             ${layouts}
-
+    
             // UNIFORMS
+            ${uniforms}
             ${this._uniforms.join('\n')}
-
+    
             // VARYINGS
             ${this._varyings.join('\n')}
-
+    
             // FUNCTIONS
             ${this.generateEncodeFunctions(this.struct)}
             ${this.generateDecodeFunctions(this.struct)}
@@ -44,19 +47,21 @@ class ComputeShaderBuilder extends GLSLBuilder {
         
             void main() {
                 ${layoutInit}   
-                vec4 texel = texture(u_input, v_texCoord);
-                X data = decodeX(texel, 0);
+                ${this.struct.name} data = decode();
+                
                 ${this._mainBody.join('\n')}
-                encodeX(data);  
+    
+                // Encode the data back into the output
+                encode(data);  
             }
         `);
-
-    }
+    }    
 
     public get vertex() {
         return this.autoFormat(`
             #version 300 es
 
+            precision highp float;
             in vec2 a_position;
             out vec2 v_texCoord;
             void main() {
@@ -71,9 +76,9 @@ class ComputeShaderBuilder extends GLSLBuilder {
         let funcs: string[] = [];
 
         decodeFunctions += `
-            ${struct.name} decode${struct.name}(vec4 texel, int texelIndex) {
+            ${struct.name} decode() {
                 ${struct.name} data;
-                float texelOffset = 1.0 / u_textureWidth; 
+                vec4 texel = texture(u_input0, v_texCoord);\n
                 ${this.generateDecodeBody(struct)}
                 return data;
             }
@@ -107,8 +112,7 @@ class ComputeShaderBuilder extends GLSLBuilder {
             decodeBody += `${data} = texel.${'rgba'[index % 4]};\n`;
 
             if (index % 4 === 3) {
-                decodeBody += `texelIndex += 1;\n`;
-                decodeBody += `texel = texture(u_input, vec2(v_texCoord.x + texelOffset * float(texelIndex), v_texCoord.y));\n`;
+                decodeBody += `texel = texture(u_input${Math.floor(index / 4) + 1}, v_texCoord);\n`;
             }
             index++;
         };
@@ -168,7 +172,7 @@ class ComputeShaderBuilder extends GLSLBuilder {
         let funcs: string[] = [];
 
         encodeFunctions += `
-            void encode${struct.name}(${struct.name} data) {
+            void encode(${struct.name} data) {
                 ${this.generateEncodeBody(struct, "data")}
             }
         `;
@@ -263,13 +267,13 @@ export class ComputeShader<T> {
 
     protected shader: ComputeShaderBuilder = new ComputeShaderBuilder(this.struct);
     private static glContext: WebGL2RenderingContext;
-    private _compute: () => string;
+    private _compute: (data: string) => string;
 
     constructor(private data: T[], private struct: GLSLStruct) {
         this.vec4Count = struct.getVec4Count();
     }
 
-    public setProgram(compute: () => string) {
+    public setProgram(compute: (data: string) => string) {
         this._compute = compute;
     }
 
@@ -287,7 +291,7 @@ export class ComputeShader<T> {
 
     private compile() {
         this.shader.addStruct(this.struct);
-        this.shader.addMainBody(this._compute?.() ?? "");
+        this.shader.addMainBody(this._compute?.("data") ?? "");
         this.gl.getExtension('OES_texture_float');
         this.gl.getExtension('EXT_color_buffer_float');
 
@@ -299,6 +303,8 @@ export class ComputeShader<T> {
     }
 
     private createShaderProgram(): WebGLProgram {
+        console.log(this.shader.fragment)
+
         const vertexShader = this.compileShader(this.shader.vertex, this.gl.VERTEX_SHADER);
         const fragmentShader = this.compileShader(this.shader.fragment, this.gl.FRAGMENT_SHADER);
         const program = this.gl.createProgram()!;
@@ -332,7 +338,7 @@ export class ComputeShader<T> {
         const target = this.gl.TEXTURE_2D;
         const level = 0;
         const internalformat = this.gl.RGBA32F;
-        const width = this.vec4Count * 4;
+        const width = floatData.length / 4;
         const height = 1;
         const border = 0;
         const format = this.gl.RGBA;
@@ -351,12 +357,25 @@ export class ComputeShader<T> {
         const framebuffer = this.gl.createFramebuffer()!;
         const width = this.vec4Count; 
         const floatData = this.serialize(this.data)
-        
+        const subArray = ArrayUtils.subFloat32(floatData, 4);
+        const textureData: Float32Array[] = [];
+
+        for (let i = 0; i < width; i++) {
+            const data: Float32Array[] = [];
+
+            for (let j = 0; j < this.data.length; j++)
+                data.push(subArray[i])
+
+            textureData.push(ArrayUtils.concatFloat32(...data));
+        }
+
+        console.log(textureData)
+
         this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, framebuffer);
         this.textures = [];  
     
         for (let i = 0; i < width; i++) {
-            this.createTexture(floatData, i);
+            this.createTexture(textureData[i], i);
             this.gl.framebufferTexture2D(
                 this.gl.FRAMEBUFFER, 
                 this.gl.COLOR_ATTACHMENT0 + i, 
@@ -366,16 +385,15 @@ export class ComputeShader<T> {
             );
         }
     
-        for (let i = 0; i < width; i++) 
-            this.createTexture(floatData, i);
-    
+        for (let i = 0; i < width; i++) {
+            this.createTexture(textureData[i], i);
+        }
         // Check if the framebuffer is complete
         const status = this.gl.checkFramebufferStatus(this.gl.FRAMEBUFFER);
 
-        if (status !== this.gl.FRAMEBUFFER_COMPLETE) {
+        if (status !== this.gl.FRAMEBUFFER_COMPLETE) 
             console.error('Framebuffer is not complete', status);
-        }
-    
+
         this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
         return framebuffer;
     }
@@ -410,7 +428,7 @@ export class ComputeShader<T> {
         for (let i = 0; i < width; i++) {
             this.gl.activeTexture(this.gl.TEXTURE0 + i);
             this.gl.bindTexture(this.gl.TEXTURE_2D, this.textures[sourceTextures + i]);
-            // this.gl.uniform1i(this.gl.getUniformLocation(this.program, `u_input${i}`), i); 
+            this.gl.uniform1i(this.gl.getUniformLocation(this.program, `u_input${i}`), i); 
         }
     
         if (!this.positionBuffer) {
@@ -452,8 +470,6 @@ export class ComputeShader<T> {
         }
     
         this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
-
-        console.log(allFloatData)
 
         return this.deserialize(allFloatData);
     }    

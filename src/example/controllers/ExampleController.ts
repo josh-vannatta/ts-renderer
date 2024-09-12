@@ -32,11 +32,10 @@ export class ExampleController extends Controller {
         this._scene.add(background);
         this.initBrickScene();
 4
-        const data = new Array(4).fill(null).map(n => new X())
+        const data = new Array(40).fill(null).map(n => new X())
 
         this.compute = new ComputeXShader(data);
-        this.compute.run()
-
+        this.compute.run();
         console.log(this.compute.readData())
     }
 
