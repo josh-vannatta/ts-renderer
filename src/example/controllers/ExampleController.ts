@@ -32,11 +32,12 @@ export class ExampleController extends Controller {
         this._scene.add(background);
         this.initBrickScene();
 4
-        const data = new Array(40).fill(null).map(n => new X())
+        const data = new Array(1).fill(null).map(n => new X())
 
         this.compute = new ComputeXShader(data);
         this.compute.run();
-        console.log(this.compute.readData())
+        console.log(this.compute.readData());
+        
     }
 
     public initParticleScene() {

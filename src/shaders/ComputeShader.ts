@@ -47,12 +47,10 @@ class ComputeShaderBuilder extends GLSLBuilder {
         
             void main() {
                 ${layoutInit}   
-                ${this.struct.name} data = decode();
+                ${this.struct.name} data = decode${this.struct.name}();
                 
                 ${this._mainBody.join('\n')}
-    
-                // Encode the data back into the output
-                encode(data);  
+                encode${this.struct.name}(data);  
             }
         `);
     }    
@@ -72,36 +70,21 @@ class ComputeShaderBuilder extends GLSLBuilder {
     }
 
     generateDecodeFunctions(struct: GLSLStruct): string {
-        let decodeFunctions = '';
-        let funcs: string[] = [];
-
-        decodeFunctions += `
-            ${struct.name} decode() {
+        return `
+            ${struct.name} decode${struct.name}() {
                 ${struct.name} data;
-                vec4 texel = texture(u_input0, v_texCoord);\n
-                ${this.generateDecodeBody(struct)}
+                vec4 texel = texture(u_input0, v_texCoord);
+                ${this.generateDecodeBody(struct, "data", 0)}
                 return data;
             }
         `;
-
-        for (const key in struct.definition) {
-            const value = struct.definition[key];
-            if (value instanceof GLSLStruct && !funcs.includes(`decode${value.name}`)) {
-                // Generate decode function for nested struct
-                decodeFunctions += this.generateDecodeFunctions(value);
-                funcs.push(`decode${value.name}`);
-            }
-        }
-
-        return decodeFunctions;
     }
 
-    generateDecodeBody(struct: GLSLStruct): string {
+    generateDecodeBody(struct: GLSLStruct, variable: string, index: number): string {
         let decodeBody = '';
-        let index = 0;
 
         const appendToData = (prop, childProp = '', isArray = false) => {
-            let data = `data.${prop}`;
+            let data = `${variable}.${prop}`;
 
             if (isArray) {
                 data += `${childProp}`;
@@ -120,10 +103,8 @@ class ComputeShaderBuilder extends GLSLBuilder {
         for (const propName in struct.definition) {
             const property = struct.definition[propName];
             if (property instanceof GLSLStruct) {
-                decodeBody += `
-                    vec4 nextTexel = texture(u_input, vec2(float(texelIndex) / u_textureWidth, v_texCoord.y));
-                    data.${propName} = decode${property.name}(nextTexel, texelIndex);
-                `;
+                decodeBody += this.generateDecodeBody(property, `${variable}.${propName}`, index);
+                index += property.getVec4Count() * 4 -1;
             } else {
                 switch (property) {
                     case GLSLType.Float:
@@ -168,30 +149,15 @@ class ComputeShaderBuilder extends GLSLBuilder {
     }
 
     generateEncodeFunctions(struct: GLSLStruct): string {
-        let encodeFunctions = '';
-        let funcs: string[] = [];
-
-        encodeFunctions += `
-            void encode(${struct.name} data) {
-                ${this.generateEncodeBody(struct, "data")}
+        return `
+            void encode${struct.name}(${struct.name} data) {
+                ${this.generateEncodeBody(struct, "data", 0)}
             }
         `;
-
-        for (const key in struct.definition) {
-            const value = struct.definition[key];
-            if (value instanceof GLSLStruct && !funcs.includes(`encode${value.name}`)) {
-                // Generate encode function for nested struct
-                encodeFunctions += this.generateEncodeFunctions(value);
-                funcs.push(`encode${value.name}`);
-            }
-        }
-
-        return encodeFunctions;
     }
 
-    generateEncodeBody(struct: GLSLStruct, data: string): string {
+    generateEncodeBody(struct: GLSLStruct, data: string, index = 0): string {
         let encodeBody = '';
-        let index = 0;
 
         const appendToFrag = (prop, subProp = '', isArray = false) => {
             let dataValue = `${data}.${prop}`;
@@ -209,9 +175,8 @@ class ComputeShaderBuilder extends GLSLBuilder {
         for (const propName in struct.definition) {
             const property = struct.definition[propName];
             if (property instanceof GLSLStruct) {
-                encodeBody += `
-                    encode${property.name}(${data}.${propName});
-                `;
+                encodeBody += this.generateEncodeBody(property, `${data}.${propName}`, index);
+                index += property.getVec4Count() * 4 - 1;
             } else {
                 switch (property) {
                     case GLSLType.Float:
@@ -267,16 +232,22 @@ export class ComputeShader<T> {
 
     protected shader: ComputeShaderBuilder = new ComputeShaderBuilder(this.struct);
     private static glContext: WebGL2RenderingContext;
-    private _compute: (data: string) => string;
+
+    private _compute: (() => void)[] = []
+    private _mainBody: string = "";
 
     constructor(private data: T[], private struct: GLSLStruct) {
         this.vec4Count = struct.getVec4Count();
     }
 
-    public setProgram(compute: (data: string) => string) {
-        this._compute = compute;
+    public onCompute(computeFunction: () => void) {
+        this._compute.push(computeFunction);
     }
 
+    public setProgram(program: (data: string) => string) {
+        this._mainBody = program("data");
+    }
+    
     private get gl() {
         if (!ComputeShader.glContext) {
             const offscreenCanvas = new OffscreenCanvas(2048, 2048);
@@ -291,15 +262,13 @@ export class ComputeShader<T> {
 
     private compile() {
         this.shader.addStruct(this.struct);
-        this.shader.addMainBody(this._compute?.("data") ?? "");
+        this.shader.addMainBody(this._mainBody);
         this.gl.getExtension('OES_texture_float');
         this.gl.getExtension('EXT_color_buffer_float');
 
         this.program = this.createShaderProgram();
         this.framebuffer = this.createFramebuffer();
         this.compiled = true;
-
-        console.log(this.shader.fragment)
     }
 
     private createShaderProgram(): WebGLProgram {
@@ -369,8 +338,7 @@ export class ComputeShader<T> {
             textureData.push(ArrayUtils.concatFloat32(...data));
         }
 
-        console.log(textureData)
-
+        this.gl.getParameter(this.gl.MAX_TEXTURE_SIZE)
         this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, framebuffer);
         this.textures = [];  
     
@@ -401,6 +369,8 @@ export class ComputeShader<T> {
     
     public run() {
         if (!this.compiled) this.compile();
+
+        this._compute.forEach(compute => compute());
     
         const width = this.vec4Count; 
         const dataLength = this.data.length * 4;   
@@ -432,13 +402,13 @@ export class ComputeShader<T> {
         }
     
         if (!this.positionBuffer) {
-            const positionLocation = this.gl.getAttribLocation(this.program, 'a_position');
+            const position = this.gl.getAttribLocation(this.program, 'a_position');
             
             this.positionBuffer = this.gl.createBuffer();
             this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.positionBuffer);
             this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), this.gl.STATIC_DRAW);
-            this.gl.enableVertexAttribArray(positionLocation);
-            this.gl.vertexAttribPointer(positionLocation, 2, this.gl.FLOAT, false, 0, 0); 
+            this.gl.enableVertexAttribArray(position);
+            this.gl.vertexAttribPointer(position, 2, this.gl.FLOAT, false, 0, 0); 
         } else {
             this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.positionBuffer);
         }
@@ -480,12 +450,15 @@ export class ComputeShader<T> {
 
         data.forEach(data => this.struct.serialize(data).forEach(value => floatData[i++] = value)) 
 
+        console.log(floatData)
+
         return floatData;
     }
 
     protected deserialize(data: Float32Array): T[] {
         const entities: any[] = [];
-
+        
+        console.log(data)
         for (let i = 0; i < data.length; i += this.vec4Count * 4) {
             const subArray = data.subarray(i, i + this.vec4Count * 4);
             const entity = this.struct.deserialize(subArray);

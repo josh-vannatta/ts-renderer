@@ -83,45 +83,64 @@ export class GLSLStruct {
         public definition: GLSLStructParams
     ) {}
 
+    public propertyCount: number = 0;
+
     /**
      * Recursively calculate how many vec4s (layouts) are needed based on the number of properties.
      * This will handle both flat and nested structs, with different sizes for each GLSLType.
      */
     getVec4Count(): number {
+        this.propertyCount = 0;
         let count = 0;
 
         for (const key in this.definition) {
             const value = this.definition[key];
             if (value instanceof GLSLStruct) {
                 count += value.getVec4Count();  // Recursively calculate for nested structs
+
+                this.propertyCount += value.propertyCount;
             } else {
-                count += this.getTypeSize(value);  // Add the size based on the type
+                const typeSize = this.getTypeSize(value);
+
+                this.propertyCount += typeSize;
+
+                count += Math.ceil(typeSize / 4);  // Add the size based on the type
             }
         }
 
-        return Math.ceil(count / 4);  // One vec4 can hold 4 floats
+        return count;  // One vec4 can hold 4 floats
     }
 
     /**
      * Serialize the object recursively into a Float32Array, based on the type of each field.
      */
     serialize(data: any): Float32Array {
-        const arrayLength = this.getVec4Count() * 4;  // Number of floats
-        const floatArray = new Float32Array(arrayLength);
-        let index = 0;
-
+        const floatArray: number[] = []; // Temporary array to accumulate values
+        let propertyCount = 0; // Track the number of properties we've serialized so far
+    
         for (const key in this.definition) {
             const value = this.definition[key];
             if (value instanceof GLSLStruct) {
+                // Recursively serialize the nested structure
                 const nestedArray = value.serialize(data[key]);
-                nestedArray.forEach((val: number) => floatArray[index++] = val);
+                nestedArray.forEach((val: number) => {
+                    if (propertyCount < this.propertyCount) {
+                        floatArray.push(val);  // Only push if we're under the property count
+                        propertyCount++;
+                    }
+                });
             } else {
-                index = this.serializeField(floatArray, index, data[key], value);
+                propertyCount = this.serializeField(floatArray, data[key], value, propertyCount);
+            }
+    
+            if (propertyCount >= this.propertyCount) {
+                break; // Stop serialization once we reach the required property count
             }
         }
-
-        return floatArray;
+    
+        return new Float32Array(floatArray);
     }
+    
 
     /**
      * Deserialize the Float32Array back into the object recursively, based on the type of each field.
@@ -129,20 +148,30 @@ export class GLSLStruct {
     deserialize(floatArray: Float32Array): any {
         const data: any = {};
         let index = 0;
-
+        let propertyCount = 0;  // Track the number of properties we've deserialized so far
+    
         for (const key in this.definition) {
             const value = this.definition[key];
+            if (propertyCount >= this.propertyCount) {
+                break;  // Stop deserializing once we've reached the property count
+            }
+    
             if (value instanceof GLSLStruct) {
-                const subArray = floatArray.subarray(index, index + value.getVec4Count() * 4);
+                value.getVec4Count()
+                const nestedVec4Count = value.propertyCount;
+                const subArray = floatArray.subarray(index, index + nestedVec4Count);
                 data[key] = value.deserialize(subArray);
-                index += subArray.length;
+                index += nestedVec4Count;
+                propertyCount += value.propertyCount; // Update property count with nested struct's properties
             } else {
                 [data[key], index] = this.deserializeField(floatArray, index, value);
+                propertyCount += this.getTypeSize(value);
             }
         }
-
+    
         return data;
     }
+    
 
     /**
      * Return the size (in floats) of a GLSLType.
@@ -172,51 +201,59 @@ export class GLSLStruct {
     /**
      * Serialize a single field into the Float32Array based on its GLSLType.
      */
-    private serializeField(floatArray: Float32Array, index: number, value: any, type: GLSLType): number {
+    serializeField(floatArray: number[], value: any, type: GLSLType, propertyCount: number): number {
+        const appendToFloatArray = (val: number) => {
+            if (propertyCount < this.propertyCount) {
+                floatArray.push(val); // Push only if within propertyCount limit
+                propertyCount++;
+            }
+        };
+    
         switch (type) {
             case GLSLType.Float:
             case GLSLType.Int:
             case GLSLType.UInt:
             case GLSLType.Bool:
-                floatArray[index++] = value;
+                appendToFloatArray(value);
                 break;
             case GLSLType.Vec2:
-                floatArray[index++] = value.x;
-                floatArray[index++] = value.y;
+                appendToFloatArray(value.x);
+                appendToFloatArray(value.y);
                 break;
             case GLSLType.Vec3:
-                floatArray[index++] = value.x;
-                floatArray[index++] = value.y;
-                floatArray[index++] = value.z;
+                appendToFloatArray(value.x);
+                appendToFloatArray(value.y);
+                appendToFloatArray(value.z);
                 break;
             case GLSLType.Vec4:
-                floatArray[index++] = value.x;
-                floatArray[index++] = value.y;
-                floatArray[index++] = value.z;
-                floatArray[index++] = value.w;
+                appendToFloatArray(value.x);
+                appendToFloatArray(value.y);
+                appendToFloatArray(value.z);
+                appendToFloatArray(value.w);
                 break;
             case GLSLType.Mat3:
                 for (let i = 0; i < 9; i++) {
-                    floatArray[index++] = value.elements[i];
+                    appendToFloatArray(value.elements[i]);
                 }
                 break;
             case GLSLType.Mat4:
                 for (let i = 0; i < 16; i++) {
-                    floatArray[index++] = value.elements[i];
+                    appendToFloatArray(value.elements[i]);
                 }
                 break;
             default:
                 throw new Error(`Unsupported GLSL type: ${type}`);
         }
-        return index;
+        
+        return propertyCount;
     }
-
+    
     /**
      * Deserialize a single field from the Float32Array based on its GLSLType.
      */
-    private deserializeField(floatArray: Float32Array, index: number, type: GLSLType): [any, number] {
+    deserializeField(floatArray: Float32Array, index: number, type: GLSLType): [any, number] {
         let value: any;
-
+    
         switch (type) {
             case GLSLType.Float:
             case GLSLType.Int:
@@ -244,9 +281,10 @@ export class GLSLStruct {
             default:
                 throw new Error(`Unsupported GLSL type: ${type}`);
         }
-
+    
         return [value, index];
     }
+    
 }
 
 export class GLSLBuilder {
