@@ -34,37 +34,19 @@ export class ComputeXShader extends ComputeShader<X> {
             child4: yStruct,
         }));
 
-        this.shader.addUniforms({
-            x: { value: 5 }
-        });
+        this.addUniform("foo", GLSLType.Float, 0);
 
         this.setProgram(data => `
-            ${data}.value.x += 1.0;
-            ${data}.value.y += 1.0;
-            ${data}.value.z += 1.0;
-            ${data}.value.w += 1.0;
-
-            ${data}.value1.x += 1.0;
-            ${data}.value1.y += 1.0;
-            ${data}.value1.z += 1.0;
-
-            ${data}.child.value.x = 9.0;
-            ${data}.child.value.y = 10.0;
-            ${data}.child.value.z = 11.0;
-            ${data}.child2.value.x = 12.0;
-            ${data}.child2.value.y = 13.0;
-            ${data}.child2.value.z = 14.0;
-            ${data}.child3.value.x = 15.0;
-            ${data}.child3.value.y = 16.0;
-            ${data}.child3.value.z = 17.0;
-            ${data}.child4.value.x = 18.0;
-            ${data}.child4.value.y = 19.0;
-            ${data}.child4.value.z = 20.0;
+            ${data}.value.x += foo;
+            ${data}.value.y += foo;
+            ${data}.value.z += foo;
+            ${data}.value.w += foo;
         `);
 
-        let times = 0
+        let times = 20
 
         this.onCompute(() => {
+            this.updateUniform("foo", ++times)
             // console.log(`ran ${++times} times`)
         })
     }

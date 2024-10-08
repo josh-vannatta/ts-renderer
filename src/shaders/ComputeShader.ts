@@ -229,6 +229,7 @@ export class ComputeShader<T> {
     public compiled: boolean = false;
     private vec4Count: number = 4;
     private positionBuffer: WebGLBuffer | null = null;
+    private uniforms: Map<string, { type: GLSLType, value: any, location: WebGLUniformLocation | null }> = new Map();
 
     protected shader: ComputeShaderBuilder = new ComputeShaderBuilder(this.struct);
     private static glContext: WebGL2RenderingContext;
@@ -239,6 +240,71 @@ export class ComputeShader<T> {
     constructor(private data: T[], private struct: GLSLStruct) {
         this.vec4Count = struct.getVec4Count();
     }
+
+    public addUniform(name: string, type: GLSLType, value: any) {
+        // Store the uniform with its initial value, type, and a placeholder for location
+        this.uniforms.set(name, { type, value, location: null });
+        this.shader.addUniform(type, name);
+    }
+
+    public updateUniform(name: string, value: any) {
+        const uniform = this.uniforms.get(name);
+        if (!uniform) {
+            throw new Error(`Uniform ${name} not found`);
+        }
+        uniform.value = value;
+    }
+    
+    private initUniforms() {
+        // Once the program is compiled, get uniform locations
+        this.uniforms.forEach((uniform, name) => {
+            const location = this.gl.getUniformLocation(this.program, name);
+            if (!location) {
+                console.error(`Uniform location for ${name} not found`);
+            }
+            uniform.location = location;
+        });
+    }
+    
+    private setUniforms() {
+        this.uniforms.forEach((uniform, name) => {
+            const { type, value, location } = uniform;
+
+            switch (type) {
+                case GLSLType.Float:
+                    this.gl.uniform1f(location, value);
+                    break;
+                case GLSLType.Int:
+                case GLSLType.UInt:
+                    this.gl.uniform1i(location, value);
+                    break;
+                case GLSLType.Vec2:
+                    this.gl.uniform2f(location, value.x, value.y);
+                    break;
+                case GLSLType.Vec3:
+                    this.gl.uniform3f(location, value.x, value.y, value.z);
+                    break;
+                case GLSLType.Vec4:
+                    this.gl.uniform4f(location, value.x, value.y, value.z, value.w);
+                    break;
+                case GLSLType.Mat3:
+                    this.gl.uniformMatrix3fv(location, false, value.elements);
+                    break;
+                case GLSLType.Mat4:
+                    this.gl.uniformMatrix4fv(location, false, value.elements);
+                    break;
+                case GLSLType.Sampler2D:
+                    this.gl.uniform1i(location, value); // Used for textures
+                    break;
+                case GLSLType.Bool:
+                    this.gl.uniform1i(location, value ? 1 : 0);
+                    break;
+                default:
+                    throw new Error(`Unsupported uniform type: ${type}`);
+            }
+        });
+    }
+
 
     public onCompute(computeFunction: () => void) {
         this._compute.push(computeFunction);
@@ -267,6 +333,7 @@ export class ComputeShader<T> {
         this.gl.getExtension('EXT_color_buffer_float');
 
         this.program = this.createShaderProgram();
+        this.initUniforms();
         this.framebuffer = this.createFramebuffer();
         this.compiled = true;
     }
@@ -371,6 +438,8 @@ export class ComputeShader<T> {
         if (!this.compiled) this.compile();
 
         this._compute.forEach(compute => compute());
+        this.gl.useProgram(this.program);
+        this.setUniforms();
     
         const width = this.vec4Count; 
         const dataLength = this.data.length * 4;   
