@@ -36,6 +36,9 @@ export class ExampleController extends Controller {
 
         this.compute = new ComputeXShader(data);
         this.compute.run();
+        this.compute.run();
+        this.compute.run();
+        this.compute.run();
         console.log(this.compute.readData());
         
     }
@@ -102,5 +105,6 @@ export class ExampleController extends Controller {
 
     protected onDestroy(): void {
         this.physics.dispose();
+        this.compute?.dispose();
     }
 }

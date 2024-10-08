@@ -40,6 +40,7 @@ interface EntityEventStream {
 abstract class Render<RenderedScene extends Scene> implements IRender<RenderedScene> {
     public assets: any[] = [];
     public isPaused = false;
+    public isStopped = false;
     public readonly loader: Loader;    
     public readonly scene: RenderedScene;
     public readonly view: View;
@@ -128,6 +129,7 @@ abstract class Render<RenderedScene extends Scene> implements IRender<RenderedSc
         this.scene.clear();
         this.controllers.forEach(c => c.destroy());
         this.isPaused = false;
+        this.isStopped = true;
     }
     
     public pause(): void {
@@ -166,6 +168,9 @@ abstract class Render<RenderedScene extends Scene> implements IRender<RenderedSc
 
     protected renderAnimation() {     
         this.renderer.webGl.setAnimationLoop(() => {
+            if (this.isStopped)
+                return;
+
             if (this.renderer.webGl.getContext().isContextLost()) {
                 this._onContextLoss();
                 console.log(this.renderer.webGl.getContext().drawingBufferHeight)
@@ -218,6 +223,9 @@ abstract class Render<RenderedScene extends Scene> implements IRender<RenderedSc
 
     private updateControllers() {          
         this.controllers.forEach(controller => {
+            if (controller.destroyed)
+                return;
+
             for (let i = 0; i < controller.animations.length; i += 2) {
                 this.renderer.playAnimation(
                     controller.animations[i], 
@@ -332,7 +340,10 @@ abstract class Render<RenderedScene extends Scene> implements IRender<RenderedSc
             this.loader.setLoaded(100, 'Ready!');   
             this.view.on('mousemove', evt => this.handleHover())
             this.view.on('click', evt => this.handleSelect());
-            this.controllers.forEach(controller => controller.onInit());  
+            this.controllers.forEach(controller => {
+                if (!controller.destroyed)
+                    controller.onInit()
+            });  
             return true;
         }
 
@@ -361,4 +372,4 @@ abstract class Render<RenderedScene extends Scene> implements IRender<RenderedSc
     }
 }
 
-export { Fonts, Render };
+export { Fonts, Render };   

@@ -1,6 +1,6 @@
 import { Matrix4, Vector3, Vector4 } from "three";
 import { ComputeShader } from "../../shaders/ComputeShader";
-import { GLSLStruct, GLSLType } from "../../shaders/GLSLBuilder";
+import { GLSLSchema, GLSLStruct, GLSLType } from "../../shaders/GLSLBuilder";
 
 export class Y {
     constructor(
@@ -21,11 +21,11 @@ export class X {
 
 export class ComputeXShader extends ComputeShader<X> {
     constructor(data: X[]) {
-        const yStruct = new GLSLStruct("Y", {
+        const yStruct = new GLSLSchema("Y", {
             value: GLSLType.Vec3
         })
 
-        super(data, new GLSLStruct("X", {
+        super(data, new GLSLSchema("X", {
             value: GLSLType.Vec4,
             value1: GLSLType.Vec3,
             child: yStruct,
@@ -35,18 +35,19 @@ export class ComputeXShader extends ComputeShader<X> {
         }));
 
         this.addUniform("foo", GLSLType.Float, 0);
+        this.addUniform("bar", GLSLType.Vec3, new Vector3(1,1,1));
 
         this.setProgram(data => `
+            ${data}.value.xyz += bar;
             ${data}.value.x += foo;
-            ${data}.value.y += foo;
-            ${data}.value.z += foo;
-            ${data}.value.w += foo;
         `);
 
-        let times = 20
+        let times = 1
+        let vec = new Vector3(1,1,1);
 
         this.onCompute(() => {
-            this.updateUniform("foo", ++times)
+            this.updateUniform("foo", times)
+            this.updateUniform("bar", vec)
             // console.log(`ran ${++times} times`)
         })
     }

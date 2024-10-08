@@ -287,6 +287,8 @@ export class GLSLStruct {
     
 }
 
+export class GLSLSchema extends GLSLStruct {}
+
 export class GLSLBuilder {
     protected _attributes: string[] = [];
     protected _uniforms: string[] = [];

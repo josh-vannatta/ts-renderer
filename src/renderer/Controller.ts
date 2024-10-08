@@ -6,6 +6,7 @@ export abstract class Controller {
     public gl: WebGL2RenderingContext | WebGLRenderingContext;
     public animations: any[] = [];
     public streams: string[] = [];
+    public destroyed: boolean = false;
 
     public abstract setup()
     public abstract onInit()
@@ -18,6 +19,7 @@ export abstract class Controller {
     }
 
     public destroy() {
+        this.destroyed = true;
         this.onDestroy();
     }
 

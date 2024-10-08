@@ -1,5 +1,5 @@
 import { ArrayUtils } from "../utils/ArrayUtils";
-import { GLSLBuilder, GLSLStruct, GLSLType } from "./GLSLBuilder";
+import { GLSLBuilder, GLSLSchema, GLSLStruct, GLSLType } from "./GLSLBuilder";
 
 class ComputeShaderBuilder extends GLSLBuilder {
     constructor(private struct: GLSLStruct) {
@@ -237,7 +237,7 @@ export class ComputeShader<T> {
     private _compute: (() => void)[] = []
     private _mainBody: string = "";
 
-    constructor(private data: T[], private struct: GLSLStruct) {
+    constructor(private data: T[], private struct: GLSLSchema) {
         this.vec4Count = struct.getVec4Count();
     }
 
@@ -256,7 +256,6 @@ export class ComputeShader<T> {
     }
     
     private initUniforms() {
-        // Once the program is compiled, get uniform locations
         this.uniforms.forEach((uniform, name) => {
             const location = this.gl.getUniformLocation(this.program, name);
             if (!location) {
@@ -339,8 +338,6 @@ export class ComputeShader<T> {
     }
 
     private createShaderProgram(): WebGLProgram {
-        console.log(this.shader.fragment)
-
         const vertexShader = this.compileShader(this.shader.vertex, this.gl.VERTEX_SHADER);
         const fragmentShader = this.compileShader(this.shader.fragment, this.gl.FRAGMENT_SHADER);
         const program = this.gl.createProgram()!;
@@ -438,8 +435,6 @@ export class ComputeShader<T> {
         if (!this.compiled) this.compile();
 
         this._compute.forEach(compute => compute());
-        this.gl.useProgram(this.program);
-        this.setUniforms();
     
         const width = this.vec4Count; 
         const dataLength = this.data.length * 4;   
@@ -469,7 +464,9 @@ export class ComputeShader<T> {
             this.gl.bindTexture(this.gl.TEXTURE_2D, this.textures[sourceTextures + i]);
             this.gl.uniform1i(this.gl.getUniformLocation(this.program, `u_input${i}`), i); 
         }
-    
+        
+        this.setUniforms();
+
         if (!this.positionBuffer) {
             const position = this.gl.getAttribLocation(this.program, 'a_position');
             
@@ -486,7 +483,6 @@ export class ComputeShader<T> {
         this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
         this.currentTextureIndex = (this.currentTextureIndex + 1) % 2;
     }
-    
     
     public readData(): T[] {
         const width = this.vec4Count;
@@ -517,9 +513,7 @@ export class ComputeShader<T> {
         const floatData = new Float32Array(this.bufferSize);
         let i = 0;
 
-        data.forEach(data => this.struct.serialize(data).forEach(value => floatData[i++] = value)) 
-
-        console.log(floatData)
+        data.forEach(data => this.struct.serialize(data).forEach(value => floatData[i++] = value))
 
         return floatData;
     }
@@ -527,7 +521,6 @@ export class ComputeShader<T> {
     protected deserialize(data: Float32Array): T[] {
         const entities: any[] = [];
         
-        console.log(data)
         for (let i = 0; i < data.length; i += this.vec4Count * 4) {
             const subArray = data.subarray(i, i + this.vec4Count * 4);
             const entity = this.struct.deserialize(subArray);
@@ -537,4 +530,40 @@ export class ComputeShader<T> {
 
         return entities;
     }
+
+    public dispose() {
+        // Delete textures
+        this.textures.forEach(texture => {
+            this.gl.deleteTexture(texture);
+        });
+        this.textures = [];
+    
+        // Delete framebuffer
+        if (this.framebuffer) {
+            this.gl.deleteFramebuffer(this.framebuffer);
+            this.framebuffer = null as any;
+        }
+    
+        // Delete shaders and program
+        if (this.program) {
+            const attachedShaders = this.gl.getAttachedShaders(this.program);
+            if (attachedShaders) {
+                attachedShaders.forEach(shader => {
+                    this.gl.detachShader(this.program, shader);
+                    this.gl.deleteShader(shader);
+                });
+            }
+            this.gl.deleteProgram(this.program);
+            this.program = null as any;
+        }
+    
+        // Delete position buffer
+        if (this.positionBuffer) {
+            this.gl.deleteBuffer(this.positionBuffer);
+            this.positionBuffer = null;
+        }
+    
+        console.log("Compute shader resources have been disposed.");
+    }
+    
 }
