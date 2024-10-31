@@ -1,10 +1,10 @@
 import { BoxGeometry, Clock, Color, Mesh, MeshPhongMaterial, Vector2, Vector3, Vector4 } from 'three';
-import { ForceDirectedField, Gravity } from '../../physics/Force';
-import { ParticleSystem } from '../../physics/Particles';
-import { Physics } from '../../physics/Physics';
-import { Controller } from '../../renderer/Controller';
-import { InstanceCollection } from '../../renderer/InstancedEntity';
-import { VectorUtils } from '../../utils/VectorUtils';
+import { ForceDirectedField, Gravity } from '../../../physics/Force';
+import { ParticleSystem } from '../../../physics/Particles';
+import { Physics } from '../../../physics/Physics';
+import { Controller } from '../../../renderer/Controller';
+import { InstanceCollection } from '../../../renderer/InstancedEntity';
+import { VectorUtils } from '../../../utils/VectorUtils';
 import { PointData } from '../ExampleApp';
 import { ExampleScene } from '../ExampleScene';
 import { Background, BackgroundSize } from '../entities/Background';
@@ -32,15 +32,23 @@ export class ExampleController extends Controller {
         this._scene.add(background);
         this.initBrickScene();
 4
-        const data = new Array(1).fill(null).map(n => new X())
+        const data = new Array(3).fill(null).map((n, i) => {
+            const x = new X()
+
+            x.value.x = i;
+
+            return x
+        })
 
         this.compute = new ComputeXShader(data);
-        this.compute.run();
-        this.compute.run();
-        this.compute.run();
-        this.compute.run();
-        console.log(this.compute.readData());
         
+        this.compute.init().then(() => {
+            this.compute.run().then(() => {
+                this.compute.readData().then(console.log)
+
+            })
+        })
+
     }
 
     public initParticleScene() {
@@ -105,6 +113,5 @@ export class ExampleController extends Controller {
 
     protected onDestroy(): void {
         this.physics.dispose();
-        this.compute?.dispose();
     }
 }

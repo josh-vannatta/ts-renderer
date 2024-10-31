@@ -1,7 +1,7 @@
 import React, { FunctionComponent } from 'react';
-import { RenderContext } from '../../react/Canvas';
+import { RenderContext } from '../../../react/Canvas';
 import { Point } from '../entities/Point';
-import { Trackable } from '../../react/Trackable';
+import { Trackable } from '../../../react/Trackable';
 
 interface Props { 
 }

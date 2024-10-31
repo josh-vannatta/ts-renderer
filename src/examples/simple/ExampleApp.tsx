@@ -1,5 +1,5 @@
 import React, { FC } from "react";
-import { Canvas } from "../react/Canvas";
+import { Canvas } from "../../react/Canvas";
 import { ExampleRender } from "./ExampleRender";
 import { PinMenu } from "./menus/PinMenu";
 

@@ -1,8 +1,8 @@
 import { Clock, Mesh, MeshToonMaterial, Object3D, SphereGeometry } from "three";
-import { AssetLoader, HasLoadedAssets } from "../../renderer/Loader";
-import { HasData, IsInteractive, RenderedEntity } from "../../renderer/RenderedEntity";
-import * as Easing from "../../utils/Easing";
-import { State } from "../../utils/StateUtils";
+import { AssetLoader, HasLoadedAssets } from "../../../renderer/Loader";
+import { HasData, IsInteractive, RenderedEntity } from "../../../renderer/RenderedEntity";
+import * as Easing from "../../../utils/Easing";
+import { State } from "../../../utils/StateUtils";
 import { PointData } from "../ExampleApp";
 
 class BaseState extends State {

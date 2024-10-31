@@ -1,8 +1,8 @@
 import { BoxGeometry, Clock, Color, Mesh, Vector2, Vector3 } from "three";
-import { IsInteractive, RenderedEntity } from "../../renderer/RenderedEntity";
-import { CompositeShader } from "../../shaders/CompositeShader";
-import { GLSLUniforms, GLSLVaryings } from "../../shaders/GLSLBuilder";
-import { ShaderEffect } from "../../shaders/ShaderEffect";
+import { IsInteractive, RenderedEntity } from "../../../renderer/RenderedEntity";
+import { CompositeShader } from "../../../shaders/CompositeShader";
+import { GLSLUniforms, GLSLVaryings } from "../../../shaders/GLSLBuilder";
+import { ShaderEffect } from "../../../shaders/ShaderEffect";
 
 export class Brick extends RenderedEntity implements IsInteractive {
     public onCreate(): void {

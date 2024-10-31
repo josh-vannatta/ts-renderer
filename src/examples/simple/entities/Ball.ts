@@ -1,6 +1,6 @@
 import { SphereGeometry, MeshToonMaterial, Vector3, Clock, Mesh, MeshPhongMaterial } from 'three';
-import { Instance, InstancedEntity } from '../../renderer/InstancedEntity';
-import { IsInteractive, RenderedEntity } from '../../renderer/RenderedEntity';
+import { Instance, InstancedEntity } from '../../../renderer/InstancedEntity';
+import { IsInteractive, RenderedEntity } from '../../../renderer/RenderedEntity';
 import { PointData } from '../ExampleApp';
 
 // Create the ball entity

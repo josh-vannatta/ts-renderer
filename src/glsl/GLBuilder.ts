@@ -1,52 +1,41 @@
 import * as THREE from "three";
+import { GLType } from "./GLProgram";
 
-export type GLSLUniforms = { [key: string]: THREE.IUniform };
-export type GLSLVaryings = { [key: string]: any }
-export type GLSLStructParams = { [key: string]: (GLSLType | GLSLStruct) };
-
- // GLSLTypes.ts
-export enum GLSLType {
-    Float = 'float',
-    Int = 'int',
-    UInt = 'uint',
-    Vec2 = 'vec2',
-    Vec3 = 'vec3',
-    Vec4 = 'vec4',
-    Mat3 = 'mat3',
-    Mat4 = 'mat4',
-    Sampler2D = 'sampler2D',
-    SamplerCube = 'samplerCube',
-    Bool = 'bool',
-    Void = 'void'
+export type GLUniforms = { [key: string]: THREE.IUniform };
+export type GLVaryings = { [key: string]: any }
+export type GLStructParams = { [key: string]: (GLType | GLStruct) };
+export enum GLVersion {
+    WebGL1 = "#version 100",
+    WebGL2 = "#version 300 es"
 }
 
-export class GLSLParam {
-    constructor(public type: GLSLType | string, public name: string, public DEFAULT: any = "") {}
+export class GLParam {
+    constructor(public type: GLType | string, public name: string, public DEFAULT: any = "") {}
 
-    public static Float(name: string = "")       { return new GLSLParam(GLSLType.Float,      name, 0.01)}
-    public static Int(name: string = "")         { return new GLSLParam(GLSLType.Int,        name, 0)}
-    public static UInt(name: string = "")        { return new GLSLParam(GLSLType.UInt,       name, 0)}
-    public static Vec2(name: string = "")        { return new GLSLParam(GLSLType.Vec2,       name, new THREE.Vector2())}
-    public static Vec3(name: string = "")        { return new GLSLParam(GLSLType.Vec3,       name, new THREE.Vector3())}
-    public static Vec4(name: string = "")        { return new GLSLParam(GLSLType.Vec4,       name, new THREE.Vector4())}
-    public static Mat3(name: string = "")        { return new GLSLParam(GLSLType.Mat3,       name, new Array(9).fill(0))}
-    public static Mat4(name: string = "")        { return new GLSLParam(GLSLType.Mat4,       name, new Array(16).fill(0))}
-    public static Sampler2D(name: string = "")   { return new GLSLParam(GLSLType.Sampler2D,  name, "")}
-    public static SamplerCube(name: string = "") { return new GLSLParam(GLSLType.SamplerCube,name, "")}
-    public static Bool(name: string = "")        { return new GLSLParam(GLSLType.Bool,       name, false)}
+    public static Float(name: string = "")       { return new GLParam(GLType.Float,      name, 0.01)}
+    public static Int(name: string = "")         { return new GLParam(GLType.Int,        name, 0)}
+    public static UInt(name: string = "")        { return new GLParam(GLType.UInt,       name, 0)}
+    public static Vec2(name: string = "")        { return new GLParam(GLType.Vec2,       name, new THREE.Vector2())}
+    public static Vec3(name: string = "")        { return new GLParam(GLType.Vec3,       name, new THREE.Vector3())}
+    public static Vec4(name: string = "")        { return new GLParam(GLType.Vec4,       name, new THREE.Vector4())}
+    public static Mat3(name: string = "")        { return new GLParam(GLType.Mat3,       name, new Array(9).fill(0))}
+    public static Mat4(name: string = "")        { return new GLParam(GLType.Mat4,       name, new Array(16).fill(0))}
+    public static Sampler2D(name: string = "")   { return new GLParam(GLType.Sampler2D,  name, "")}
+    public static SamplerCube(name: string = "") { return new GLParam(GLType.SamplerCube,name, "")}
+    public static Bool(name: string = "")        { return new GLParam(GLType.Bool,       name, false)}
 }
 
-export class GLSLFunction {
-    public returnType: GLSLType | string;
-    public name: GLSLName;
-    public params: GLSLParam[];
-    public body: GLSLBody;
+export class GLFunction {
+    public returnType: GLType | string;
+    public name: GLName;
+    public params: GLParam[];
+    public body: GLBody;
 
-    constructor(opts: Partial<GLSLFunction>) {
-        this.returnType = opts.returnType ?? GLSLType.Void;
-        this.name = opts.name ?? new GLSLName("function");
+    constructor(opts: Partial<GLFunction>) {
+        this.returnType = opts.returnType ?? GLType.Void;
+        this.name = opts.name ?? new GLName("function");
         this.params = opts.params ?? [];
-        this.body = opts.body ?? new GLSLBody('');
+        this.body = opts.body ?? new GLBody('');
     }
 
     build(): string {
@@ -59,7 +48,7 @@ export class GLSLFunction {
     }
 }
 
-export class GLSLName {
+export class GLName {
     constructor(private name: string) {}
 
     public toString() {
@@ -67,7 +56,7 @@ export class GLSLName {
     }
 }
 
-export class GLSLBody {
+export class GLBody {
     constructor(private main: string) {}
 
     public toString() {
@@ -77,17 +66,17 @@ export class GLSLBody {
     }
 }
 
-export class GLSLStruct {
+export class GLStruct {
     constructor(
         public name: string, 
-        public definition: GLSLStructParams
+        public definition: GLStructParams
     ) {}
 
     public propertyCount: number = 0;
 
     /**
      * Recursively calculate how many vec4s (layouts) are needed based on the number of properties.
-     * This will handle both flat and nested structs, with different sizes for each GLSLType.
+     * This will handle both flat and nested structs, with different sizes for each GLType.
      */
     getVec4Count(): number {
         this.propertyCount = 0;
@@ -95,7 +84,7 @@ export class GLSLStruct {
 
         for (const key in this.definition) {
             const value = this.definition[key];
-            if (value instanceof GLSLStruct) {
+            if (value instanceof GLStruct) {
                 count += value.getVec4Count();  // Recursively calculate for nested structs
 
                 this.propertyCount += value.propertyCount;
@@ -120,7 +109,7 @@ export class GLSLStruct {
     
         for (const key in this.definition) {
             const value = this.definition[key];
-            if (value instanceof GLSLStruct) {
+            if (value instanceof GLStruct) {
                 // Recursively serialize the nested structure
                 const nestedArray = value.serialize(data[key]);
                 nestedArray.forEach((val: number) => {
@@ -160,7 +149,7 @@ export class GLSLStruct {
                 break;  // Stop deserializing once we've reached the property count
             }
     
-            if (value instanceof GLSLStruct) {
+            if (value instanceof GLStruct) {
                 value.getVec4Count()
                 const nestedVec4Count = value.propertyCount;
                 const subArray = floatArray.subarray(index, index + nestedVec4Count);
@@ -178,24 +167,24 @@ export class GLSLStruct {
     
 
     /**
-     * Return the size (in floats) of a GLSLType.
+     * Return the size (in floats) of a GLType.
      */
-    private getTypeSize(type: GLSLType): number {
+    private getTypeSize(type: GLType): number {
         switch (type) {
-            case GLSLType.Float:
-            case GLSLType.Int:
-            case GLSLType.UInt:
-            case GLSLType.Bool:
+            case GLType.Float:
+            case GLType.Int:
+            case GLType.UInt:
+            case GLType.Bool:
                 return 1;
-            case GLSLType.Vec2:
+            case GLType.Vec2:
                 return 2;
-            case GLSLType.Vec3:
+            case GLType.Vec3:
                 return 3;
-            case GLSLType.Vec4:
+            case GLType.Vec4:
                 return 4;
-            case GLSLType.Mat3:
+            case GLType.Mat3:
                 return 9;
-            case GLSLType.Mat4:
+            case GLType.Mat4:
                 return 16;
             default:
                 throw new Error(`Unsupported GLSL type: ${type}`);
@@ -203,9 +192,9 @@ export class GLSLStruct {
     }
 
     /**
-     * Serialize a single field into the Float32Array based on its GLSLType.
+     * Serialize a single field into the Float32Array based on its GLType.
      */
-    serializeField(floatArray: number[], value: any, type: GLSLType, propertyCount: number): number {
+    serializeField(floatArray: number[], value: any, type: GLType, propertyCount: number): number {
         const appendToFloatArray = (val: number) => {
             if (propertyCount < this.propertyCount) {
                 floatArray.push(val); // Push only if within propertyCount limit
@@ -214,33 +203,33 @@ export class GLSLStruct {
         };
     
         switch (type) {
-            case GLSLType.Float:
-            case GLSLType.Int:
-            case GLSLType.UInt:
-            case GLSLType.Bool:
+            case GLType.Float:
+            case GLType.Int:
+            case GLType.UInt:
+            case GLType.Bool:
                 appendToFloatArray(value);
                 break;
-            case GLSLType.Vec2:
+            case GLType.Vec2:
                 appendToFloatArray(value.x);
                 appendToFloatArray(value.y);
                 break;
-            case GLSLType.Vec3:
+            case GLType.Vec3:
                 appendToFloatArray(value.x);
                 appendToFloatArray(value.y);
                 appendToFloatArray(value.z);
                 break;
-            case GLSLType.Vec4:
+            case GLType.Vec4:
                 appendToFloatArray(value.x);
                 appendToFloatArray(value.y);
                 appendToFloatArray(value.z);
                 appendToFloatArray(value.w);
                 break;
-            case GLSLType.Mat3:
+            case GLType.Mat3:
                 for (let i = 0; i < 9; i++) {
                     appendToFloatArray(value.elements[i]);
                 }
                 break;
-            case GLSLType.Mat4:
+            case GLType.Mat4:
                 for (let i = 0; i < 16; i++) {
                     appendToFloatArray(value.elements[i]);
                 }
@@ -253,32 +242,32 @@ export class GLSLStruct {
     }
     
     /**
-     * Deserialize a single field from the Float32Array based on its GLSLType.
+     * Deserialize a single field from the Float32Array based on its GLType.
      */
-    deserializeField(floatArray: Float32Array, index: number, type: GLSLType): [any, number] {
+    deserializeField(floatArray: Float32Array, index: number, type: GLType): [any, number] {
         let value: any;
     
         switch (type) {
-            case GLSLType.Float:
-            case GLSLType.Int:
-            case GLSLType.UInt:
-            case GLSLType.Bool:
+            case GLType.Float:
+            case GLType.Int:
+            case GLType.UInt:
+            case GLType.Bool:
                 value = floatArray[index++];
                 break;
-            case GLSLType.Vec2:
+            case GLType.Vec2:
                 value = { x: floatArray[index++], y: floatArray[index++] };
                 break;
-            case GLSLType.Vec3:
+            case GLType.Vec3:
                 value = { x: floatArray[index++], y: floatArray[index++], z: floatArray[index++] };
                 break;
-            case GLSLType.Vec4:
+            case GLType.Vec4:
                 value = { x: floatArray[index++], y: floatArray[index++], z: floatArray[index++], w: floatArray[index++] };
                 break;
-            case GLSLType.Mat3:
+            case GLType.Mat3:
                 value = { elements: floatArray.slice(index, index + 9) };
                 index += 9;
                 break;
-            case GLSLType.Mat4:
+            case GLType.Mat4:
                 value = { elements: floatArray.slice(index, index + 16) };
                 index += 16;
                 break;
@@ -291,18 +280,26 @@ export class GLSLStruct {
     
 }
 
-export class GLSLSchema extends GLSLStruct {}
-
-export class GLSLBuilder {
+export class GLSchema extends GLStruct {}
+export class GLBuilder {
     protected _attributes: string[] = [];
     protected _uniforms: string[] = [];
-    protected _varyings: string[] = [];
+    protected _inputs: string[] = [];      // Inputs to shaders, especially in WebGL 2.0
+    protected _outputs: string[] = [];     // Outputs, used for fragment shaders in WebGL 2.0
+    protected _varyings: string[] = [];    // Varying variables
     protected _functions: string[] = [];
     protected _structs: string[] = [];
-    protected _mainBody: GLSLBody[] = [];
+    protected _mainBody: GLBody[] = [];
     protected _maxEffects: number = 1;
     private _structNames: Record<string, boolean> = {};
     public index: number = 0;
+    private version: GLVersion;
+    private precision: string;
+
+    constructor(version: GLVersion = GLVersion.WebGL2) {
+        this.version = version;
+        this.precision = version === GLVersion.WebGL1 ? "precision mediump float;" : "precision highp float;";
+    }
 
     setMaxEffects(max: number) {
         this._maxEffects = max > 0 ? max : 0;
@@ -312,95 +309,60 @@ export class GLSLBuilder {
         this.index = index > 0 ? index : 0;
     }
 
-    addAttribute(type: GLSLType, name: string): this {
-        this._attributes.push(`attribute ${type} ${name};`);
+    setVersion(version: GLVersion) {
+        this.version = version;
+        this.precision = version === GLVersion.WebGL1 ? "precision mediump float;" : "precision highp float;";
+    }
+
+    addAttribute(type: GLType, name: string): this {
+        const qualifier = this.version === GLVersion.WebGL1 ? "attribute" : "in";
+        this._attributes.push(`${qualifier} ${type} ${name};`);
         return this;
     }
 
-    addUniform(type: GLSLType, name: string): this {
+    addUniform(type: GLType, name: string): this {
         this._uniforms.push(`uniform ${type} ${name};`);
         return this;
     }
 
-    addVarying(type: GLSLType, name: string): this {
-        this._varyings.push(`varying ${type} ${name};`);
+    addVarying(type: GLType, name: string): this {
+        const qualifier = this.version === GLVersion.WebGL1 ? "varying" : "out";
+        this._varyings.push(`${qualifier} ${type} ${name};`);
         return this;
     }
 
-    addFunction(glslFunction: Partial<GLSLFunction>): this {
-        this._functions.push(new GLSLFunction(glslFunction).build());
+    addInput(type: GLType, name: string): this {
+        const qualifier = this.version === GLVersion.WebGL2 ? "in" : "varying";
+        this._inputs.push(`${qualifier} ${type} ${name};`);
+        return this;
+    }
+
+    addOutput(type: GLType, name: string): this {
+        if (this.version === GLVersion.WebGL2) {
+            this._outputs.push(`out ${type} ${name};`);
+        }
+        return this;
+    }
+
+    addFunction(glslFunction: Partial<GLFunction>): this {
+        this._functions.push(new GLFunction(glslFunction).build());
         return this;
     }
 
     addMainBody(code: string): this {
-        this._mainBody.push(new GLSLBody(code));
+        this._mainBody.push(new GLBody(code));
         return this;
     }
 
-    addUniforms(uniforms: GLSLUniforms): this {
-        for (const [key, uniform] of Object.entries(uniforms)) {
-            const type = this.getType(uniform.value);
-            this.addUniform(type, key);
-        }
-        return this;
-    }
-
-    addVaryings(uniforms: GLSLVaryings): this {
-        for (const [key, varying] of Object.entries(uniforms)) {
-            const type = this.getType(varying);
-            this.addVarying(type, key);
-        }
-        return this;
-    }
-
-    addStruct<T extends GLSLStruct>(struct: T): this {
-        const structName = struct.name;
-
-        if (this._structNames[structName])
-            return this;
-        
-        let structString = `struct ${structName} {\n`;
-
-        for (const key in struct.definition) {
-            const paramType = struct.definition[key];
-
-            if (paramType instanceof GLSLStruct) {
-                // Recursively add nested struct definitions
-                this.addStruct(paramType as GLSLStruct);
-                structString += `    ${paramType.name} ${key};\n`; // Use the nested struct name
-            } else {
-                structString += `    ${paramType} ${key};\n`;
-            }
-        }
-
-        structString += `};\n`;
-
-        this._structs.push(structString);
-        this._structNames[structName] = true;
-        
-        return this;
-    }
-
-    getType(value: any): GLSLType {
-        if (value instanceof THREE.Color) return GLSLType.Vec3;
-        if (value instanceof THREE.Vector2) return GLSLType.Vec2;
-        if (value instanceof THREE.Vector3) return GLSLType.Vec3;
-        if (value instanceof THREE.Vector4) return GLSLType.Vec4;
-        if (value instanceof THREE.Matrix3) return GLSLType.Mat3;
-        if (value instanceof THREE.Matrix4) return GLSLType.Mat4;
-        if (typeof value === 'number') return GLSLType.Float;
-        if (typeof value === 'boolean') return GLSLType.Bool;
-        if (value instanceof THREE.Texture) return GLSLType.Sampler2D;
-        // Extend this with more types as needed
-        return GLSLType.Float;
-    }
-
-    build() : string {
-        return this.autoFormat(`
+    build(): string {
+        return GLBuilder.autoFormat(`
+            #version ${this.version === GLVersion.WebGL2 ? '300 es' : '100'}
+            ${this.precision}
             ${this._structs.join('\n')}
-            
             ${this._attributes.join('\n')}
             ${this._uniforms.join('\n')}
+            ${this._inputs.join('\n')}
+            ${this._outputs.join('\n')}
             ${this._varyings.join('\n')}
             ${this._functions.join('\n')}
 
@@ -411,44 +373,35 @@ export class GLSLBuilder {
     }
 
     autoFormat(code: string) {
-        return GLSLBuilder.autoFormat(code);
+        return GLBuilder.autoFormat(code);
     }
 
-    get structs(): string {
-        return this._structs.join("\n");
-    }
-
-    public static autoFormat(code: string) {
-        let lines = code.split('\n');
-
+    static autoFormat(code: string) {
+        const lines = code.trim().split('\n');
         let indentLevel = 0;
+        const indentSize = 4;
 
-        if (lines.length > 0 && lines[0].length == 0)
-            lines.shift()
-            
-        const indentSize = 4; // Number of spaces per indent level
-        const indentedLines = lines.map((line) => {
+        const formattedLines = lines.map((line) => {
             let trimmedLine = line.trim();
 
-            if (trimmedLine.length == 0)
-                return ''
-    
-            if (trimmedLine.endsWith('}') || trimmedLine.startsWith('}')) 
+            if (trimmedLine.endsWith('}') || trimmedLine.startsWith('}')) {
                 indentLevel = Math.max(0, indentLevel - 1);
-    
+            }
+
             const indentedLine = ' '.repeat(indentLevel * indentSize) + trimmedLine;
-    
-            if (trimmedLine.endsWith('{')) 
+
+            if (trimmedLine.endsWith('{')) {
                 indentLevel += 1;
-    
+            }
+
             return indentedLine;
         });
-    
-        return indentedLines.join('\n');
+
+        return formattedLines.filter(line => line !== '').join('\n');
     }
 }
 
-export class FragmentShaderBuilder extends GLSLBuilder {
+export class GLFragmentBuilder extends GLBuilder {
     constructor() {
         super();
         this.addDefaultFunctions();
@@ -481,8 +434,8 @@ export class FragmentShaderBuilder extends GLSLBuilder {
 
     addDefaultFunctions() {
         this.addFunction({
-            name: new GLSLName("builder_initColors"),
-            body: new GLSLBody(`
+            name: new GLName("builder_initColors"),
+            body: new GLBody(`
                 for (int i = 0; i < MAX_EFFECTS; i++) {
                     builder_colors[i] = vec4(0.0);
                 }
@@ -490,15 +443,15 @@ export class FragmentShaderBuilder extends GLSLBuilder {
         });
 
         this.addFunction({
-            name: new GLSLName("builder_setColor"),
-            params: [ GLSLParam.Vec4("color"), GLSLParam.Int("index") ],
-            body: new GLSLBody(`builder_colors[index] = builder_colors[index] + color;`)
+            name: new GLName("builder_setColor"),
+            params: [ GLParam.Vec4("color"), GLParam.Int("index") ],
+            body: new GLBody(`builder_colors[index] = builder_colors[index] + color;`)
         });
 
         this.addFunction({
-            name: new GLSLName( "builder_composeColors"),
-            params: [ GLSLParam.Int("index")],
-            body: new GLSLBody(`
+            name: new GLName( "builder_composeColors"),
+            params: [ GLParam.Int("index")],
+            body: new GLBody(`
                 vec4 composedColor = vec4(0.0);
 
                 for (int i = 0; i <= index; i++) {
@@ -512,8 +465,8 @@ export class FragmentShaderBuilder extends GLSLBuilder {
 
     public addFragCoordFunctions() {
         this.addFunction({
-            name: new GLSLName("builder_initFragData"),
-            body: new GLSLBody(`
+            name: new GLName("builder_initFragData"),
+            body: new GLBody(`
                 for (int i = 0; i < MAX_EFFECTS; i++) {
                     builder_fragData[i] = vec4(0.0);
                 }
@@ -521,15 +474,15 @@ export class FragmentShaderBuilder extends GLSLBuilder {
         });
         
         this.addFunction({
-            name: new GLSLName("builder_setFragData"),
-            params: [GLSLParam.Vec4("data"), GLSLParam.Int("index")],
-            body: new GLSLBody(`builder_fragData[index] = builder_fragData[index] + data;`)
+            name: new GLName("builder_setFragData"),
+            params: [GLParam.Vec4("data"), GLParam.Int("index")],
+            body: new GLBody(`builder_fragData[index] = builder_fragData[index] + data;`)
         });
         
         this.addFunction({
-            name: new GLSLName("builder_composeFragData"),
-            params: [GLSLParam.Int("index")],
-            body: new GLSLBody(`
+            name: new GLName("builder_composeFragData"),
+            params: [GLParam.Int("index")],
+            body: new GLBody(`
                 vec4 composedData = vec4(0.0);
         
                 for (int i = 0; i <= index; i++) {
@@ -543,8 +496,8 @@ export class FragmentShaderBuilder extends GLSLBuilder {
 
     public addSampleMaskFunctions() {
         this.addFunction({
-            name: new GLSLName("builder_initSampleMask"),
-            body: new GLSLBody(`
+            name: new GLName("builder_initSampleMask"),
+            body: new GLBody(`
                 for (int i = 0; i < MAX_EFFECTS; i++) {
                     builder_sampleMask[i] = 0u;
                 }
@@ -552,22 +505,22 @@ export class FragmentShaderBuilder extends GLSLBuilder {
         });
         
         this.addFunction({
-            name: new GLSLName("builder_setSampleMask"),
+            name: new GLName("builder_setSampleMask"),
             params: [
-                GLSLParam.UInt("mask"),  // uint mask parameter
-                GLSLParam.Int("effect"), // effect index
+                GLParam.UInt("mask"),  // uint mask parameter
+                GLParam.Int("effect"), // effect index
             ],
-            body: new GLSLBody(`
+            body: new GLBody(`
                 builder_sampleMask[effect] |= mask;
             `)
         });
         
         this.addFunction({
-            name: new GLSLName("builder_composeSampleMask"),
+            name: new GLName("builder_composeSampleMask"),
             params: [
-                GLSLParam.Int("effect")
+                GLParam.Int("effect")
             ],
-            body: new GLSLBody(`
+            body: new GLBody(`
                 uint composedMask = 0u;
                 for (int i = 0; i <= effect; i++) {
                     composedMask |= builder_sampleMask[i];
@@ -579,7 +532,7 @@ export class FragmentShaderBuilder extends GLSLBuilder {
 }
 
 
-export class VertexShaderBuilder extends GLSLBuilder {
+export class GLVertexBuilder extends GLBuilder {
     constructor() {
         super();
         this.addDefaultFunctions();
@@ -616,8 +569,8 @@ export class VertexShaderBuilder extends GLSLBuilder {
     addDefaultFunctions() {
         // Initialize builder_positions[]
         this.addFunction({
-            name: new GLSLName("builder_initPosition"),
-            body: new GLSLBody(`
+            name: new GLName("builder_initPosition"),
+            body: new GLBody(`
                 for (int i = 0; i < MAX_EFFECTS; i++) {
                     builder_positions[i] = vec4(0.0);
                 }
@@ -626,18 +579,18 @@ export class VertexShaderBuilder extends GLSLBuilder {
 
         // Set builder_positions[effect] for a specific effect
         this.addFunction({
-            name: new GLSLName("builder_setPosition"),
-            params: [ GLSLParam.Vec4("position"), GLSLParam.Int("index") ],
-            body: new GLSLBody(`
+            name: new GLName("builder_setPosition"),
+            params: [ GLParam.Vec4("position"), GLParam.Int("index") ],
+            body: new GLBody(`
                 builder_positions[index] = builder_positions[index] + position;
             `)
         });
 
         // Compose all builder_positions[] into gl_Position
         this.addFunction({
-            name: new GLSLName("builder_composePosition"),
-            params: [ GLSLParam.Int("index") ],
-            body: new GLSLBody(`
+            name: new GLName("builder_composePosition"),
+            params: [ GLParam.Int("index") ],
+            body: new GLBody(`
                 vec4 composedPosition = vec4(0.0);
                 for (int i = 0; i <= index; i++) {
                     composedPosition += builder_positions[i];
@@ -648,8 +601,8 @@ export class VertexShaderBuilder extends GLSLBuilder {
 
         // Initialize builder_pointSizes[]
         this.addFunction({
-            name: new GLSLName("builder_initPointSize"),
-            body: new GLSLBody(`
+            name: new GLName("builder_initPointSize"),
+            body: new GLBody(`
                 for (int i = 0; i < MAX_EFFECTS; i++) {
                     builder_pointSizes[i] = 0.0;
                 }
@@ -658,18 +611,18 @@ export class VertexShaderBuilder extends GLSLBuilder {
 
         // Set builder_pointSizes[effect] for a specific effect
         this.addFunction({
-            name: new GLSLName("builder_setPointSize"),
-            params: [ GLSLParam.Float("pointSize"), GLSLParam.Int("index") ],
-            body: new GLSLBody(`
+            name: new GLName("builder_setPointSize"),
+            params: [ GLParam.Float("pointSize"), GLParam.Int("index") ],
+            body: new GLBody(`
                 builder_pointSizes[index] = builder_pointSizes[index] + pointSize;
             `)
         });
 
         // Compose all builder_pointSizes[] into gl_PointSize
         this.addFunction({
-            name: new GLSLName("builder_composePointSize"),
-            params: [ GLSLParam.Int("index") ],
-            body: new GLSLBody(`
+            name: new GLName("builder_composePointSize"),
+            params: [ GLParam.Int("index") ],
+            body: new GLBody(`
                 float composedPointSize = 0.0;
                 for (int i = 0; i <= index; i++) {
                     composedPointSize += builder_pointSizes[i];
@@ -682,8 +635,8 @@ export class VertexShaderBuilder extends GLSLBuilder {
     addClipDistanceFunctions() {
         // Initialize builder_clipDistances[][]
         this.addFunction({
-            name: new GLSLName("builder_initClipDistance"),
-            body: new GLSLBody(`
+            name: new GLName("builder_initClipDistance"),
+            body: new GLBody(`
                 for (int i = 0; i < MAX_EFFECTS; i++) {
                     for (int j = 0; j < MAX_CLIP_PLANES; j++) {
                         builder_clipDistances[i][j] = 0.0;
@@ -694,22 +647,22 @@ export class VertexShaderBuilder extends GLSLBuilder {
 
         // Set builder_clipDistances[effect][planeIndex] for a specific effect and clip plane
         this.addFunction({
-            name: new GLSLName("builder_setClipDistance"),
+            name: new GLName("builder_setClipDistance"),
             params: [
-                GLSLParam.Float("clipDistance"),
-                GLSLParam.Int("index"),
-                GLSLParam.Int("planeIndex")
+                GLParam.Float("clipDistance"),
+                GLParam.Int("index"),
+                GLParam.Int("planeIndex")
             ],
-            body: new GLSLBody(`
+            body: new GLBody(`
                 builder_clipDistances[index][planeIndex] = builder_clipDistances[index][planeIndex] + clipDistance;
             `)
         });
 
         // Compose all builder_clipDistances[][] into gl_ClipDistance[]
         this.addFunction({
-            name: new GLSLName("builder_composeClipDistance"),
-            params: [ GLSLParam.Int("index") ],
-            body: new GLSLBody(`
+            name: new GLName("builder_composeClipDistance"),
+            params: [ GLParam.Int("index") ],
+            body: new GLBody(`
                 for (int j = 0; j < MAX_CLIP_PLANES; j++) {
                     float composedClipDistance = 0.0;
                     for (int i = 0; i <= index; i++) {
@@ -723,8 +676,8 @@ export class VertexShaderBuilder extends GLSLBuilder {
 
     public addCullDistanceFunctions() {
         this.addFunction({
-            name: new GLSLName("builder_initCullDistances"),
-            body: new GLSLBody(`
+            name: new GLName("builder_initCullDistances"),
+            body: new GLBody(`
                 for (int i = 0; i < MAX_EFFECTS; i++) {
                     builder_cullDistances[i] = 0.0;
                 }
@@ -732,15 +685,15 @@ export class VertexShaderBuilder extends GLSLBuilder {
         });
         
         this.addFunction({
-            name: new GLSLName("builder_setCullDistance"),
-            params: [GLSLParam.Float("distance"), GLSLParam.Int("index")],
-            body: new GLSLBody(`builder_cullDistances[index] = builder_cullDistances[index] + distance;`)
+            name: new GLName("builder_setCullDistance"),
+            params: [GLParam.Float("distance"), GLParam.Int("index")],
+            body: new GLBody(`builder_cullDistances[index] = builder_cullDistances[index] + distance;`)
         });
         
         this.addFunction({
-            name: new GLSLName("builder_composeCullDistances"),
-            params: [GLSLParam.Int("index")],
-            body: new GLSLBody(`
+            name: new GLName("builder_composeCullDistances"),
+            params: [GLParam.Int("index")],
+            body: new GLBody(`
                 float composedCullDistance = 0.0;
         
                 for (int i = 0; i <= index; i++) {

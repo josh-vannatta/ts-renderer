@@ -24,7 +24,6 @@ class ComputeShaderBuilder extends GLSLBuilder {
     
             // CONFIGURATION
             precision highp float;
-            float u_textureWidth = ${vec4Count * 4}.0;
             in vec2 v_texCoord;
     
             // STRUCTS
@@ -57,15 +56,35 @@ class ComputeShaderBuilder extends GLSLBuilder {
 
     public get vertex() {
         return this.autoFormat(`
-            #version 300 es
+        #version 300 es
 
-            precision highp float;
-            in vec2 a_position;
-            out vec2 v_texCoord;
-            void main() {
-                v_texCoord = a_position * 0.5 + 0.5;
-                gl_Position = vec4(a_position, 0, 1);
-            }
+        precision highp float;
+        in vec2 a_position;
+        out vec2 v_texCoord;
+        
+        uniform float u_numObjects;  // Number of objects
+        uniform float u_numLayers;   // Number of layers (property groups)
+        uniform float u_textureWidth;  // Width of the texture (in texels)
+        
+        void main() {
+            // Get the current vertex index
+            gl_PointSize = 1.0;
+            int vertexID = int(gl_VertexID);
+        
+            // Compute the object index and the layer index from the vertexID
+            int objectIndex = vertexID / int(u_numLayers);  // Integer division to get the object
+            int layerIndex = vertexID % int(u_numLayers);   // Modulo to get the layer within the object
+        
+            // Calculate the texture coordinate for each object and property layer
+            float xCoord = (float(objectIndex) * 4.0) / u_textureWidth; // Spread across texture width
+            float yCoord = float(layerIndex) / u_numLayers;  // Spread across the layers (y-axis)
+        
+            // Assign the calculated texture coordinates
+            v_texCoord = vec2(xCoord, yCoord);
+        
+            // Set the position of the vertex
+            gl_Position = vec4(a_position, 0.0, 1.0);
+        }        
         `);
     }
 
@@ -239,6 +258,9 @@ export class ComputeShader<T> {
 
     constructor(private data: T[], private struct: GLSLSchema) {
         this.vec4Count = struct.getVec4Count();
+        this.addUniform("u_textureWidth", GLSLType.Float, data.length * 4)
+        this.addUniform("u_numObjects", GLSLType.Float, data.length)
+        this.addUniform("u_numLayers", GLSLType.Float, this.vec4Count)
     }
 
     public addUniform(name: string, type: GLSLType, value: any) {
@@ -331,6 +353,9 @@ export class ComputeShader<T> {
         this.gl.getExtension('OES_texture_float');
         this.gl.getExtension('EXT_color_buffer_float');
 
+        console.log(this.shader.fragment)
+        console.log(this.shader.vertex)
+
         this.program = this.createShaderProgram();
         this.initUniforms();
         this.framebuffer = this.createFramebuffer();
@@ -397,7 +422,7 @@ export class ComputeShader<T> {
             const data: Float32Array[] = [];
 
             for (let j = 0; j < this.data.length; j++)
-                data.push(subArray[i])
+                data.push(subArray[i + j * width])
 
             textureData.push(ArrayUtils.concatFloat32(...data));
         }
@@ -420,6 +445,9 @@ export class ComputeShader<T> {
         for (let i = 0; i < width; i++) {
             this.createTexture(textureData[i], i);
         }
+
+        console.log(textureData)
+
         // Check if the framebuffer is complete
         const status = this.gl.checkFramebufferStatus(this.gl.FRAMEBUFFER);
 
@@ -427,9 +455,33 @@ export class ComputeShader<T> {
             console.error('Framebuffer is not complete', status);
 
         this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
+
         return framebuffer;
     }
     
+    public positionArray() {
+        const numObjects = this.data.length;
+        const numProperties = this.struct.propertyCount;
+        const numTexelsPerObject = Math.ceil(numProperties / 4);  // Number of texel layers needed per object
+        const positions = new Float32Array(numObjects * numTexelsPerObject * 2);
+    
+        for (let i = 0; i < numObjects; i++) {
+            for (let j = 0; j < numTexelsPerObject; j++) {
+                const index = (i * numTexelsPerObject + j) * 2;
+    
+                // x position normalized [-1, 1] across numObjects
+                positions[index] = (i / (numObjects - 1)) * 2.0 - 1.0;  // Normalized X
+                
+                // y position normalized [-1, 1] across numTexelsPerObject
+                positions[index + 1] = (j / (numTexelsPerObject - 1)) * 2.0 - 1.0;  // Normalized Y
+            }
+        }
+
+        console.log(positions)
+    
+        // return new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]);
+        return positions;
+    }
     
     public run() {
         if (!this.compiled) this.compile();
@@ -440,7 +492,8 @@ export class ComputeShader<T> {
         const dataLength = this.data.length * 4;   
         const sourceTextures = this.currentTextureIndex * width; 
         const destinationTextures = (this.currentTextureIndex + 1) % 2 * width; 
-        
+
+        this.updateUniform("u_textureWidth", dataLength);        
         this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.framebuffer);
 
         for (let i = 0; i < width; i++) {
@@ -454,7 +507,7 @@ export class ComputeShader<T> {
         }
     
         const buffers = new Array(width).fill(null).map((_, i) => this.gl.COLOR_ATTACHMENT0 + i);
-        
+
         this.gl.drawBuffers(buffers);
         this.gl.viewport(0, 0, dataLength, 1);
         this.gl.useProgram(this.program);
@@ -472,14 +525,14 @@ export class ComputeShader<T> {
             
             this.positionBuffer = this.gl.createBuffer();
             this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.positionBuffer);
-            this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), this.gl.STATIC_DRAW);
+            this.gl.bufferData(this.gl.ARRAY_BUFFER, this.positionArray(), this.gl.STATIC_DRAW);
             this.gl.enableVertexAttribArray(position);
             this.gl.vertexAttribPointer(position, 2, this.gl.FLOAT, false, 0, 0); 
         } else {
             this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.positionBuffer);
         }
     
-        this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
+        this.gl.drawArrays(this.gl.POINTS, 0, this.data.length * width);
         this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
         this.currentTextureIndex = (this.currentTextureIndex + 1) % 2;
     }
@@ -505,6 +558,8 @@ export class ComputeShader<T> {
         }
     
         this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
+
+        console.log(allFloatData)
 
         return this.deserialize(allFloatData);
     }    

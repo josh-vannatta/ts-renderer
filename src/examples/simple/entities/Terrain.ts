@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import { ShaderEffect } from '../../shaders/ShaderEffect';
-import { GLSLUniforms, GLSLVaryings } from '../../shaders/GLSLBuilder';
-import { RenderedEntity } from '../../renderer/RenderedEntity';
-import { CompositeShader } from '../../shaders/CompositeShader';
+import { ShaderEffect } from '../../../shaders/ShaderEffect';
+import { GLSLUniforms, GLSLVaryings } from '../../../shaders/GLSLBuilder';
+import { RenderedEntity } from '../../../renderer/RenderedEntity';
+import { CompositeShader } from '../../../shaders/CompositeShader';
 
 export class Terrain extends RenderedEntity {
     public onCreate(): void {

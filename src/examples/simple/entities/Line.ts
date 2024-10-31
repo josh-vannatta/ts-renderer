@@ -1,6 +1,6 @@
 import { Mesh, MeshToonMaterial, TubeGeometry } from "three";
-import { Connection, ConnectionEndpoints } from "../../connections/Connection";
-import { Path } from "../../connections/Path";
+import { Connection, ConnectionEndpoints } from "../../../connections/Connection";
+import { Path } from "../../../connections/Path";
 
 export class Line extends Path {
     constructor(endpoints: ConnectionEndpoints) {

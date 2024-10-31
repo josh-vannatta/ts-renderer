@@ -1,6 +1,6 @@
 import './App.css'
-import { ExampleApp } from './example/ExampleApp'
-import { ExampleRender } from './example/ExampleRender';
+import { RotatingTetrahedron } from './examples/rotatingTriangle/RotatingTetrahedron';
+import GLCanvas from './react/GLCanvas';
 import { Loader } from './renderer/Loader'
 
 export enum Assets {
@@ -23,19 +23,18 @@ Loader.load({
 });
 
 const containerStyle = {
-    width: "100vw", 
-    height: "100%",
+    width: "800px", 
+    height: "600px",
     border: "1px solid #3ab8c3",
     margin: 16
 }
 function App() {
     return (
         <div style={{ display: "flex"}}>
-            {/* <div style={containerStyle}>
-                <ExampleApp/>
-            </div> */}
             <div style={containerStyle}>
-                <ExampleApp />        
+                <GLCanvas renderables={[
+                    gl => new RotatingTetrahedron(gl),
+                ]}/>
             </div>
         </div>
     )

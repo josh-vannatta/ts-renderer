@@ -1,4 +1,4 @@
-import { Scene } from "../renderer/Scene";
+import { Scene } from "../../renderer/Scene";
 import { Background } from "./entities/Background";
 import { Line } from "./entities/Line";
 import { Point } from "./entities/Point";

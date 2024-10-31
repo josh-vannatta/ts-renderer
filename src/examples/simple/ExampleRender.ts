@@ -1,5 +1,5 @@
-import { Lighting } from "../renderer/Lighting";
-import { IRender, Render } from "../renderer/Render";
+import { Lighting } from "../../renderer/Lighting";
+import { IRender, Render } from "../../renderer/Render";
 import { ExampleController } from "./controllers/ExampleController";
 import { PointData } from "./ExampleApp";
 import { ExampleScene } from "./ExampleScene";

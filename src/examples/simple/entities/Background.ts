@@ -1,5 +1,5 @@
 import { MeshBasicMaterial, DoubleSide, RingGeometry, Mesh, Vector3 } from "three";
-import { RenderedEntity } from "../../renderer/RenderedEntity";
+import { RenderedEntity } from "../../../renderer/RenderedEntity";
 
 export enum BackgroundSize {
     Near = 1000,

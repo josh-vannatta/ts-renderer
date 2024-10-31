@@ -1,7 +1,7 @@
 import { Clock, Object3D } from "three";
-import { Assets } from "../../App";
-import { HasLoadedAssets, LoadedEntity } from "../../renderer/Loader";
-import { IsInteractive, RenderedEntity } from "../../renderer/RenderedEntity";
+import { Assets } from "../../../App";
+import { HasLoadedAssets, LoadedEntity } from "../../../renderer/Loader";
+import { IsInteractive, RenderedEntity } from "../../../renderer/RenderedEntity";
 import { PointData } from "../ExampleApp";
 
 export enum RobotActions {
