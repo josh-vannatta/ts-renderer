@@ -55,12 +55,6 @@ export abstract class GLRenderable {
 
     // Utility to create and return a framebuffer with an attached texture
     protected createTexture(data?: Float32Array, index = 0) {
-        const framebuffer = this.gl.createFramebuffer();
-
-        if (!framebuffer) throw new Error("Failed to create framebuffer");
-
-        this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, framebuffer);
-
         const texture = this.gl.createTexture();
         if (!texture) throw new Error("Failed to create texture");
 
@@ -69,27 +63,20 @@ export abstract class GLRenderable {
             this.gl.TEXTURE_2D,
             0,
             this.gl.RGBA32F,
-            this.gl.drawingBufferWidth,
-            this.gl.drawingBufferHeight,
+            this.context.width,
+            this.context.height,
             0,
             this.gl.RGBA,
             this.gl.FLOAT,
             data || null // If data is provided, initialize texture with it
         );
+
         this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST);
         this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST);
-
-        this.gl.framebufferTexture2D(
-            this.gl.FRAMEBUFFER,
-            this.gl.COLOR_ATTACHMENT0 + index,
-            this.gl.TEXTURE_2D,
-            texture,
-            0
-        );
-
-        this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
+        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE);
+        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE);
         
-        return { framebuffer, texture };
+        return texture;
     }
 
     setIndexBuffer(indices: Uint16Array) {
@@ -134,10 +121,10 @@ export abstract class GLRenderable {
         }
     }
 
-    readData(framebuffer: WebGLFramebuffer | undefined): Uint8Array {
-        const width = this.gl.drawingBufferWidth;
-        const height = this.gl.drawingBufferHeight;
-        const pixelData = new Uint8Array(width * height * 4);
+    readData(framebuffer?: WebGLFramebuffer): Float32Array {
+        const width = this.context.width;
+        const height = this.context.height;
+        const pixelData = new Float32Array(width * height * 4);
 
         if (framebuffer != undefined)
             this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, framebuffer);
@@ -147,7 +134,7 @@ export abstract class GLRenderable {
             0, 0,                  // Start at the lower-left corner
             width, height,         // Read the entire viewport
             this.gl.RGBA,          // RGBA format
-            this.gl.UNSIGNED_BYTE, // Each component as a byte
+            this.gl.FLOAT,         // Each component as a byte
             pixelData              // Output array
         );
 
