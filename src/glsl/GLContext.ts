@@ -22,6 +22,13 @@ export class GLContext {
         this.handleContextLoss();
     }
 
+    public get height() {
+        return this.options.height ?? 600
+    }
+    public get width() {
+        return this.options.width ?? 800
+    }
+
     // Initialize the canvas, either as on-screen or offscreen
     private initializeCanvas(): HTMLCanvasElement | OffscreenCanvas {
         const { width = 800, height = 600, offscreen = false } = this.options;

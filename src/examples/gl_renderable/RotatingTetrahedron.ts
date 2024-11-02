@@ -9,10 +9,7 @@ const Uniforms = {
 };
 
 export class RotatingTetrahedron extends GLRenderable {
-    constructor(glContext: GLContext) {
-        super(glContext);
-
-        // 3D coordinates and normals for each face of the tetrahedron
+    protected setup(): void {
         const tetrahedronVertices = new Float32Array([
             // Vertex positions     // Normals for lighting
             0.0, 0.5, 0.0,         0.0, 0.707, 0.707,    // Top vertex
@@ -28,7 +25,7 @@ export class RotatingTetrahedron extends GLRenderable {
             0, 2, 3,  // Right face
             1, 2, 3   // Bottom face
         ]);
-        
+
         // Set buffers with position (vec3) and normal data (vec3)
         this.setBuffer("a_position", tetrahedronVertices, { size: 3, stride: 6 });
         this.setBuffer("a_normal", tetrahedronVertices, { size: 3, stride: 6, offset: 3 });

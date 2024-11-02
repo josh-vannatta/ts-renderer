@@ -1,54 +1,51 @@
-import React, { useEffect, useRef } from 'react';
-import { GLContext } from '../glsl/GLContext';
+import React, { useRef, useEffect, useState } from 'react';
 import { GLRenderable } from '../glsl/GLRenderable';
+import { GLContext } from '../glsl/GLContext';
 
 interface GLCanvasProps {
-    renderables: ((gl: GLContext) => GLRenderable)[];
-    width?: number;
-    height?: number;
+    renderables: GLRenderable[];
 }
 
-const GLCanvas: React.FC<GLCanvasProps> = ({ renderables, width = 800, height = 600 }) => {
+const GLCanvas: React.FC<GLCanvasProps> = ({ renderables }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const animationFrameRef = useRef<number>(0);
-    const glContextRef = useRef<GLContext | null>(null);
-    const initializedRenderablesRef = useRef<GLRenderable[]>([]);
+    const animationFrameRef = useRef<number>();
 
     useEffect(() => {
         const canvas = canvasRef.current;
+
         if (!canvas) return;
 
-        // Initialize GLContext
+        // Initialize WebGL context
         const glContext = new GLContext({ width: canvas.width, height: canvas.height, canvas });
-        glContextRef.current = glContext;
 
-        // Initialize each GLRenderable using the provided functions
-        initializedRenderablesRef.current = renderables.map(createRenderable => createRenderable(glContext));
+        // Initialize each renderable with the WebGL context
+        renderables.forEach(renderable => renderable.initialize(glContext));
 
         // Animation loop
         const animate = (time: number) => {
-            glContext.clear();
-            initializedRenderablesRef.current.forEach((renderable) => renderable.render(time));
+            glContext.clear();  // Clear the canvas before each frame
+
+            renderables.forEach(renderable => {
+                renderable.program?.use();  // Use the program for each renderable
+                renderable.render(time);    // Render each element independently
+            });
+
             animationFrameRef.current = requestAnimationFrame(animate);
         };
 
-        // Start the animation loop
         animationFrameRef.current = requestAnimationFrame(animate);
 
-        // Cleanup
         return () => {
-            cancelAnimationFrame(animationFrameRef.current);
-            initializedRenderablesRef.current.forEach((renderable) => renderable.dispose());
-            initializedRenderablesRef.current = [];
-            glContextRef.current = null;
+            if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+            renderables.forEach(renderable => renderable.dispose());
         };
-    }, [canvasRef.current, renderables]);
+    }, [renderables]);
 
     return (
         <canvas
             ref={canvasRef}
-            width={width}
-            height={height}
+            width="800"
+            height="600"
             style={{ width: '100%', height: '100%', display: 'block' }}
         />
     );

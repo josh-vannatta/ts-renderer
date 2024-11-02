@@ -8,9 +8,7 @@ const Uniforms = {
 }
 
 export class RotatingTriangle extends GLRenderable {
-    constructor(glContext: GLContext) {
-        super(glContext);
-
+    protected setup(): void {
         const triangleVertices = new Float32Array([
             0.0, 0.5,   // Top vertex
            -0.5, -0.5,  // Bottom-left vertex

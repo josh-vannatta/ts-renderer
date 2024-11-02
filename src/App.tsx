@@ -1,7 +1,9 @@
-import './App.css'
-import { RotatingTetrahedron } from './examples/rotatingTriangle/RotatingTetrahedron';
-import GLCanvas from './react/GLCanvas';
-import { Loader } from './renderer/Loader'
+
+import './App.css';
+import React from 'react';
+import { Loader } from './renderer/Loader';
+import { GLContext } from './glsl/GLContext';
+import { GLCompute } from './examples/gl_renderable/GLCompute';
 
 export enum Assets {
     Robot = "Robot",
@@ -28,13 +30,26 @@ const containerStyle = {
     border: "1px solid #3ab8c3",
     margin: 16
 }
+
 function App() {
+    React.useEffect(() => {
+        const glContext = new GLContext({ width: 5, height: 1, offscreen: true });
+        const compute = new GLCompute(new Float32Array(new Array(5 * 4).map(n => 1)));
+
+        compute.initialize(glContext);
+
+        compute.render(0);
+
+        console.log(compute.readData())
+    }, [])
+
     return (
         <div style={{ display: "flex"}}>
             <div style={containerStyle}>
-                <GLCanvas renderables={[
-                    gl => new RotatingTetrahedron(gl),
-                ]}/>
+                {/* <GLCanvas renderables={[
+                    new GLCompute(),
+                    // new PointsGrid(),
+                ]}/> */}
             </div>
         </div>
     )
