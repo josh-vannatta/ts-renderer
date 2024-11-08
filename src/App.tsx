@@ -35,17 +35,18 @@ const containerStyle = {
 
 function App() {
     React.useEffect(() => {
+        const data = new Float32Array(new Array(5 * 4).fill(2));
         const glContext = new GLContext({
             width: 5,
             height: 1,
             offscreen: true,
-            extensions: ["WEBGL_color_buffer_float", "EXT_color_buffer_float", "EXT_float_blend"]
+            extensions: ["EXT_color_buffer_float", "EXT_float_blend"]
         });
-        const compute = new GLCompute(new Float32Array(new Array(5 * 4).fill(2)));
+        const compute = new GLCompute(data);
 
         compute.initialize(glContext);
-
         compute.render(1);
+        compute.render(2);
         console.log(compute.readData())
     }, [])
 

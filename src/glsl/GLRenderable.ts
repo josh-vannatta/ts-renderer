@@ -13,17 +13,17 @@ export enum GLDrawMode {
 }
 
 export abstract class GLRenderable {
-    protected gl: WebGL2RenderingContext;
     protected context: GLContext;
     private indexBuffer: WebGLBuffer | null = null;
-    public program: GLProgram | null = null;
+    public program: GLProgram;
     protected uniforms: Map<string, { type: GLType, value: any }> = new Map();
     
     private drawMode: GLDrawMode;
-    private indexCount: number | null = null;
+    private indexCount: number = 0;
 
     constructor(drawMode: GLDrawMode = GLDrawMode.TRIANGLES) {
         this.drawMode = drawMode;
+        this.program = new GLProgram();
     }
 
     protected abstract setup(): void;
@@ -32,62 +32,32 @@ export abstract class GLRenderable {
 
     initialize(glContext: GLContext) {
         this.context = glContext;
-        this.gl = glContext.context;
-        this.program = this.createProgram();
-        this.setup();
-    }
+        this.program = new GLProgram(this.context);
 
-    private createProgram(): GLProgram {
-        const vertexShader = new GLShader(this.gl, { 
+        const vertexShader = new GLShader(this.context, { 
             type: ShaderType.Vertex, 
             source: this.createVertexShader(),
             autoCompile: true
         });
-        const fragmentShader = new GLShader(this.gl, { 
+
+        const fragmentShader = new GLShader(this.context, { 
             type: ShaderType.Fragment, 
             source: this.createFragmentShader(),
             autoCompile: true
         });
-        const program = new GLProgram(this.gl, vertexShader, fragmentShader);
-        program.use();
-        return program;
+
+        this.program.initialize(vertexShader, fragmentShader);
+        this.program.use();
+        this.setup();
     }
 
-    // Utility to create and return a framebuffer with an attached texture
-    protected createTexture(data?: Float32Array, index = 0) {
-        const texture = this.gl.createTexture();
-        if (!texture) throw new Error("Failed to create texture");
-
-        this.gl.bindTexture(this.gl.TEXTURE_2D, texture);
-        this.gl.texImage2D(
-            this.gl.TEXTURE_2D,
-            0,
-            this.gl.RGBA32F,
-            this.context.width,
-            this.context.height,
-            0,
-            this.gl.RGBA,
-            this.gl.FLOAT,
-            data || null // If data is provided, initialize texture with it
-        );
-
-        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST);
-        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST);
-        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE);
-        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE);
-        
-        return texture;
+    // Utility to create and return a texture
+    protected createTexture(data: Float32Array) {
+        return this.program.createTexture(data);
     }
 
-    setIndexBuffer(indices: Uint16Array) {
-        this.indexBuffer = this.gl.createBuffer();
-        if (!this.indexBuffer) {
-            throw new Error("Failed to create index buffer");
-        }
-        
-        this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
-        this.gl.bufferData(this.gl.ELEMENT_ARRAY_BUFFER, indices, this.gl.STATIC_DRAW);
-        
+    protected setIndexBuffer(indices: Uint16Array) {
+        this.indexBuffer = this.program.setArrayBuffer(indices);        
         this.indexCount = indices.length;
     }
 
@@ -101,7 +71,7 @@ export abstract class GLRenderable {
 
     protected setUniform(name: string, type: GLType, value: any) {
         this.uniforms.set(name, { type, value });
-        this.program?.setUniform(name, type, value);
+        this.program.setUniform(name, type, value);
     }
 
     protected updateUniforms() {
@@ -112,46 +82,24 @@ export abstract class GLRenderable {
 
     render(time: number) {
         this.updateUniforms();
-
-        if (this.indexBuffer && this.indexCount) {
-            this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
-            this.gl.drawElements(this.drawMode, this.indexCount, this.gl.UNSIGNED_SHORT, 0);
-        } else if (this.indexCount) {
-            this.gl.drawArrays(this.drawMode, 0, this.indexCount);
-        }
+        this.program.drawArrayBuffer(this.drawMode, this.indexCount, this.indexBuffer)
+        // this.program.bindFrameBuffer(undefined)
     }
 
     readData(framebuffer?: WebGLFramebuffer): Float32Array {
-        const width = this.context.width;
-        const height = this.context.height;
-        const pixelData = new Float32Array(width * height * 4);
+        if (!this.context || !framebuffer)
+            return new Float32Array();
 
-        if (framebuffer != undefined)
-            this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, framebuffer);
-
-        // Read pixels from the currently bound framebuffer
-        this.gl.readPixels(
-            0, 0,                  // Start at the lower-left corner
-            width, height,         // Read the entire viewport
-            this.gl.RGBA,          // RGBA format
-            this.gl.FLOAT,         // Each component as a byte
-            pixelData              // Output array
-        );
-
-        if (framebuffer != undefined)
-            this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
-
-        return pixelData;
+        return this.program.readData(framebuffer);
     }
 
     dispose() {
         if (this.program) {
             this.program.dispose();
-            this.program = null;
         }
 
         if (this.indexBuffer) {
-            this.gl.deleteBuffer(this.indexBuffer);
+            this.context.gl.deleteBuffer(this.indexBuffer);
             this.indexBuffer = null;
         }
     }

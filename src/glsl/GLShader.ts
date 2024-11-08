@@ -1,3 +1,5 @@
+import { GLContext } from "./GLContext";
+
 export enum ShaderType {
     Vertex = "vertex",
     Fragment = "fragment",
@@ -17,8 +19,8 @@ export class GLShader {
     private source: string | null = null;
     private onCompileError?: (error: string) => void;
 
-    constructor(gl: WebGL2RenderingContext, options: ShaderOptions) {
-        this.gl = gl;
+    constructor(context: GLContext, options: ShaderOptions) {
+        this.gl = context.gl;
         this.type = options.type;
         this.onCompileError = options.onCompileError;
         
@@ -45,25 +47,25 @@ export class GLShader {
             throw new Error(`No GLSL source code provided for ${this.type} shader.`);
         }
 
-        console.log(this.source)
-
         const shaderType = this.type === ShaderType.Vertex ? this.gl.VERTEX_SHADER : this.gl.FRAGMENT_SHADER;
-        this.shader = this.compileShader(shaderType, this.source);
+        this.shader = this.compileShader(shaderType);
         
         if (!this.shader) {
             throw new Error(`Failed to compile ${this.type} shader.`);
         }
+        
         return this;
     }
 
     // Compile and handle errors with detailed logging
-    private compileShader(type: number, source: string): WebGLShader {
+    private compileShader(type: number): WebGLShader {
         const shader = this.gl.createShader(type);
+        
         if (!shader) {
             throw new Error(`Unable to create shader of type ${type}`);
         }
 
-        this.gl.shaderSource(shader, source);
+        this.gl.shaderSource(shader, this.source ?? "");
         this.gl.compileShader(shader);
 
         if (!this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS)) {
@@ -105,7 +107,7 @@ export class GLShader {
 
     // Helper method to quickly set, compile, and retrieve the shader for chaining
     static async fromURL(
-        gl: WebGL2RenderingContext, 
+        gl: GLContext, 
         type: ShaderType, 
         url: string, 
         onCompileError?: (error: string) => void

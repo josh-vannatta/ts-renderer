@@ -10,7 +10,7 @@ type GLContextOptions = {
 
 export class GLContext {
     private canvas: HTMLCanvasElement | OffscreenCanvas;
-    private gl: WebGL2RenderingContext;
+    public gl: WebGL2RenderingContext;
     private options: GLContextOptions;
 
     constructor(options: GLContextOptions = {}) {
@@ -116,11 +116,6 @@ export class GLContext {
     // Helper for binding the WebGL context
     use() {
         this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
-    }
-
-    // Provide the WebGL2RenderingContext
-    get context(): WebGL2RenderingContext {
-        return this.gl;
     }
 
     // Provide the canvas (HTMLCanvasElement or OffscreenCanvas)
