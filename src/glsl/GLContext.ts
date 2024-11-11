@@ -6,6 +6,10 @@ type GLContextOptions = {
     extensions?: string[];
     canvas?: HTMLCanvasElement;
     attributes?: WebGLContextAttributes;
+    depthTest?: boolean; // Controls depth testing
+    blending?: boolean;   // Controls blending
+    blendFunc?: { src: number; dst: number }; // Configurable blend function
+    clearColor?: [number, number, number, number]; // Default clear color
 };
 
 export class GLContext {
@@ -74,14 +78,27 @@ export class GLContext {
 
     // Set default WebGL state
     private configureDefaultState() {
-        this.gl.enable(this.gl.DEPTH_TEST); // Enable depth testing
-        this.gl.depthFunc(this.gl.LEQUAL); // Near things obscure far things
-        this.gl.enable(this.gl.BLEND);     // Enable alpha blending
-        this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
-        this.gl.clearColor(0.0, 0.0, 0.0, 1.0); // Black clear color
-        this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
+        const { depthTest = !this.options.offscreen, blending = !this.options.offscreen } = this.options;
+        
+        if (depthTest) {
+            this.gl.enable(this.gl.DEPTH_TEST);
+            this.gl.depthFunc(this.gl.LEQUAL);
+        }
+        
+        if (blending) {
+            this.gl.enable(this.gl.BLEND);
+            const { src = this.gl.SRC_ALPHA, dst = this.gl.ONE_MINUS_SRC_ALPHA } = this.options.blendFunc || {};
+            this.gl.blendFunc(src, dst);
+        }
+        
+        const clearColor = this.options.clearColor || [0.0, 0.0, 0.0, 1.0];
+        this.gl.clearColor(...clearColor);
+        
+        if (!this.options.offscreen) {
+            this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
+        }
     }
-
+    
     // Handle context loss and restoration
     private handleContextLoss() {
         this.canvas.addEventListener("webglcontextlost", (event) => {
@@ -98,13 +115,8 @@ export class GLContext {
 
     // Convenience methods for resizing
     resize(width: number, height: number) {
-        if (this.canvas instanceof HTMLCanvasElement) {
-            this.canvas.width = width;
-            this.canvas.height = height;
-        } else if (this.canvas instanceof OffscreenCanvas) {
-            this.canvas.width = width;
-            this.canvas.height = height;
-        }
+        this.canvas.width = width;
+        this.canvas.height = height;
         this.gl.viewport(0, 0, width, height);
     }
 

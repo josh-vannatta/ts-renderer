@@ -11,6 +11,8 @@ export enum GLType {
     Vec4 = 'vec4',
     Mat3 = 'mat3',
     Mat4 = 'mat4',
+    In = "in",
+    Out = "out",
     Sampler2D = 'sampler2D',
     SamplerCube = 'samplerCube',
     Bool = 'bool',
@@ -86,34 +88,6 @@ export class GLProgram {
         }
     }
 
-
-    // Utility to create and return a framebuffer with an attached texture
-    createTexture(data: Float32Array) {
-        const texture = this.gl.createTexture();
-
-        if (!texture) throw new Error("Failed to create texture");
-
-        this.gl.bindTexture(this.gl.TEXTURE_2D, texture);
-        this.gl.texImage2D(
-            this.gl.TEXTURE_2D,
-            0,
-            this.gl.RGBA32F,
-            this.context.width,
-            this.context.height,
-            0,
-            this.gl.RGBA,
-            this.gl.FLOAT,
-            data  
-        );
-
-        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST);
-        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST);
-        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE);
-        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE);
-        
-        return texture;
-    }
-
     setBuffer(attributeName: string, data: Float32Array, options: GLBufferOptions) {
         if (!this.program) throw new Error("Unable to bind GLBuffer: program uninitialized");
 
@@ -171,10 +145,6 @@ export class GLProgram {
         return pixelData;
     }
 
-    createFrameBuffer() {
-        return this.gl.createFramebuffer();
-    }
-
     bindFrameBuffer(framebuffer?: WebGLFramebuffer, onBind?: () => void) {
         if (!framebuffer) {
             this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
@@ -191,15 +161,6 @@ export class GLProgram {
         if (status !== this.gl.FRAMEBUFFER_COMPLETE) {
             throw new Error('Framebuffer is incomplete: ' + status);
         } 
-    }
-
-    bindTexture(writeTexture: WebGLTexture, readTexture: WebGLTexture | null, attachment: number = 0) {
-        this.gl.framebufferTexture2D(this.gl.FRAMEBUFFER, this.gl.COLOR_ATTACHMENT0 + attachment, this.gl.TEXTURE_2D, writeTexture, 0);
-
-        if (!!readTexture) {
-            this.gl.activeTexture(this.gl.TEXTURE0);
-            this.gl.bindTexture(this.gl.TEXTURE_2D, readTexture ?? writeTexture);
-        }
     }
 
     drawArrayBuffer(drawMode: GLDrawMode, length: number, indexBuffer: WebGLBuffer | null) {
@@ -234,7 +195,14 @@ export class GLProgram {
     setUniform(name: string, type: GLType, value: any) {
         if (!this.program) throw new Error("Unable to set uniform: program uninitialized");
 
-        const location = this.getUniformLocation(name);
+        let location: WebGLUniformLocation | undefined;
+
+        try {
+            location = this.getUniformLocation(name);
+        } catch (err) {
+            console.error(err)
+            return;
+        }
 
         switch (type) {
             case GLType.Float:

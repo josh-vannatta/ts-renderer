@@ -20,10 +20,14 @@ export abstract class GLRenderable {
     
     private drawMode: GLDrawMode;
     private indexCount: number = 0;
+    public vertexShader: GLShader;
+    public fragmentShader: GLShader;
 
     constructor(drawMode: GLDrawMode = GLDrawMode.TRIANGLES) {
         this.drawMode = drawMode;
         this.program = new GLProgram();
+        this.vertexShader = new GLShader(this.context, { type: ShaderType.Vertex });
+        this.fragmentShader = new GLShader(this.context, { type: ShaderType.Fragment });
     }
 
     protected abstract setup(): void;
@@ -34,26 +38,21 @@ export abstract class GLRenderable {
         this.context = glContext;
         this.program = new GLProgram(this.context);
 
-        const vertexShader = new GLShader(this.context, { 
+        this.vertexShader = new GLShader(this.context, { 
             type: ShaderType.Vertex, 
             source: this.createVertexShader(),
             autoCompile: true
         });
 
-        const fragmentShader = new GLShader(this.context, { 
+        this.fragmentShader = new GLShader(this.context, { 
             type: ShaderType.Fragment, 
             source: this.createFragmentShader(),
             autoCompile: true
         });
 
-        this.program.initialize(vertexShader, fragmentShader);
+        this.program.initialize(this.vertexShader, this.fragmentShader);
         this.program.use();
         this.setup();
-    }
-
-    // Utility to create and return a texture
-    protected createTexture(data: Float32Array) {
-        return this.program.createTexture(data);
     }
 
     protected setIndexBuffer(indices: Uint16Array) {

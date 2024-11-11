@@ -1,105 +1,103 @@
-import { GLContext } from './GLContext';
-import { GLProgram, GLType } from './GLProgram';
+import { GLContext } from "./GLContext";
 
 export class GLTextureBuffer {
-    private textures: WebGLTexture[] = [];
+    private gl: WebGL2RenderingContext;
+    private textures: WebGLTexture[][] = [];
+    private framebuffers: WebGLFramebuffer[] = [];
     private currentTextureIndex = 0;
-    public framebuffer: WebGLFramebuffer;
-    private context: GLContext;
-    
-    constructor(private data: Float32Array) {}
+    public width: number;
+    public height: number;
+    private textureCapacity: number; // The max number of vec4's a single texture can hold
 
-    public init(context: GLContext) {
-        this.context = context;
-        this.framebuffer = this.context.gl.createFramebuffer()!;
-        this.textures = [this.texture, this.texture];
+    constructor(context: GLContext, data: Float32Array) {
+        this.gl = context.gl;
+        this.width = context.width;
+        this.height = context.height;
+        
+        // Calculate capacity based on width and height (number of vec4's)
+        this.textureCapacity = this.width * this.height * 4; // Total floats per texture
+
+        // Calculate the number of textures needed
+        const textureCount = Math.ceil(data.length / this.textureCapacity);
+        
+        // Initialize textures and framebuffers for ping-pong rendering
+        for (let i = 0; i < 2; i++) { // Two sets for ping-ponging
+            const textures: WebGLTexture[] = [];
+
+            for (let j = 0; j < textureCount; j++) {
+                // Slice the data for each texture, filling the rest with zeros if necessary
+                const start = j * this.textureCapacity;
+                const end = start + this.textureCapacity;
+                const textureData = new Float32Array(this.textureCapacity);
+                textureData.set(data.slice(start, end)); // Fill with data, remaining values will be zero
+                
+                textures.push(this.createTexture(textureData));
+            }
+
+            this.textures.push(textures);
+            this.framebuffers.push(this.createFramebuffer(textures));
+        }
     }
 
-    /**
-     * Creates a texture with specified parameters.
-     */
-    private get texture(): WebGLTexture {
-        const gl = this.context.gl;
-        const texture = gl.createTexture()!;
-
-        gl.bindTexture(gl.TEXTURE_2D, texture);
-        gl.texImage2D(
-            gl.TEXTURE_2D,
-            0,
-            gl.RGBA32F,
-            this.context.width,
-            this.context.height,
-            0,
-            gl.RGBA,
-            gl.FLOAT,
-            this.data
+    private createTexture(data: Float32Array): WebGLTexture {
+        const texture = this.gl.createTexture()!;
+        this.gl.bindTexture(this.gl.TEXTURE_2D, texture);
+        this.gl.texImage2D(
+            this.gl.TEXTURE_2D, 0, this.gl.RGBA32F,
+            this.width, this.height, 0,
+            this.gl.RGBA, this.gl.FLOAT, data
         );
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST);
+        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST);
+        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE);
+        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE);
 
         return texture;
     }
 
-    /**
-     * Binds the current write texture to the framebuffer.
-     */
-    write(program: GLProgram) {
-        const gl = this.context.gl;
-        program.bindFrameBuffer(this.framebuffer, () => {
-            const writeTexture = this.getWriteTexture();
-            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, writeTexture, 0);
+    private createFramebuffer(textures: WebGLTexture[]): WebGLFramebuffer {
+        const framebuffer = this.gl.createFramebuffer()!;
+        this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, framebuffer);
+
+        // Attach each texture to a different color attachment point
+        textures.forEach((texture, index) => {
+            this.gl.framebufferTexture2D(
+                this.gl.FRAMEBUFFER, 
+                this.gl.COLOR_ATTACHMENT0 + index, 
+                this.gl.TEXTURE_2D, 
+                texture, 
+                0
+            );
         });
+
+        const drawBuffers = textures.map((_, index) => this.gl.COLOR_ATTACHMENT0 + index);
+        this.gl.drawBuffers(drawBuffers);
+
+        if (this.gl.checkFramebufferStatus(this.gl.FRAMEBUFFER) !== this.gl.FRAMEBUFFER_COMPLETE) {
+            throw new Error("Framebuffer is incomplete.");
+        }
+
+        return framebuffer;
     }
 
-    /**
-     * Binds the current read texture to a sampler uniform in the shader program.
-     */
-    read(program: GLProgram, uniformName: string, unit: number = 0) {
-        const gl = this.context.gl;
-        const readTexture = this.getReadTexture();
-
-        gl.activeTexture(gl.TEXTURE0 + unit);
-        gl.bindTexture(gl.TEXTURE_2D, readTexture);
-        program.setUniform(uniformName, GLType.Sampler2D, unit);
+    public get readFramebuffer(): WebGLFramebuffer {
+        return this.framebuffers[this.currentTextureIndex];
     }
 
-    /**
-     * Swaps read and write textures for ping-pong rendering.
-     */
-    swap() {
-        this.currentTextureIndex = (this.currentTextureIndex + 1) % 2;
+    public get writeFramebuffer(): WebGLFramebuffer {
+        return this.framebuffers[(this.currentTextureIndex + 1) % this.framebuffers.length];
     }
 
-    // Retrieve the current read texture
-    private getReadTexture(): WebGLTexture {
+    public get readTextures(): WebGLTexture[] {
         return this.textures[this.currentTextureIndex];
     }
 
-    // Retrieve the current write texture
-    private getWriteTexture(): WebGLTexture {
-        return this.textures[(this.currentTextureIndex + 1) % 2];
+    public swap() {
+        this.currentTextureIndex = (this.currentTextureIndex + 1) % this.textures.length;
     }
 
-    /**
-     * Calculates a position buffer for a full-screen quad, used in rendering the entire viewport.
-     */
-    get positionBuffer(): Float32Array {
-        return new Float32Array([
-            -1.0, -1.0, 0.0, // Bottom-left corner
-             1.0, -1.0, 0.0, // Bottom-right corner
-            -1.0,  1.0, 0.0, // Top-left corner
-             1.0,  1.0, 0.0  // Top-right corner
-        ]);
-    }
-
-    /**
-     * Releases texture and framebuffer resources.
-     */
-    dispose() {
-        const gl = this.context.gl;
-        this.textures.forEach(texture => gl.deleteTexture(texture));
-        gl.deleteFramebuffer(this.framebuffer);
+    public dispose() {
+        this.textures.flat().forEach(texture  => this.gl.deleteTexture(texture));
+        this.framebuffers.forEach(framebuffer => this.gl.deleteFramebuffer(framebuffer));
     }
 }

@@ -291,7 +291,7 @@ export class GLBuilder {
     protected _structs: string[] = [];
     protected _mainBody: GLBody[] = [];
     protected _maxEffects: number = 1;
-    private _structNames: Record<string, boolean> = {};
+    protected _layouts: string[] = [];
     public index: number = 0;
     private version: GLVersion;
     private precision: string;
@@ -312,6 +312,10 @@ export class GLBuilder {
     setVersion(version: GLVersion) {
         this.version = version;
         this.precision = version === GLVersion.WebGL1 ? "precision mediump float;" : "precision highp float;";
+    }
+
+    addLayout(name: string, location: number) {
+        this._layouts.push(`layout(location = ${location}) out vec4 ${name};`);
     }
 
     addAttribute(type: GLType, name: string): this {
@@ -358,6 +362,7 @@ export class GLBuilder {
         return GLBuilder.autoFormat(`
             #version ${this.version === GLVersion.WebGL2 ? '300 es' : '100'}
             ${this.precision}
+            ${this._layouts.join('\n')}
             ${this._structs.join('\n')}
             ${this._attributes.join('\n')}
             ${this._uniforms.join('\n')}

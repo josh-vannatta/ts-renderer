@@ -20,7 +20,7 @@ export class GLShader {
     private onCompileError?: (error: string) => void;
 
     constructor(context: GLContext, options: ShaderOptions) {
-        this.gl = context.gl;
+        this.gl = context?.gl;
         this.type = options.type;
         this.onCompileError = options.onCompileError;
         
@@ -29,6 +29,14 @@ export class GLShader {
             this.setSource(options.source);
             if (options.autoCompile) this.compile();
         }
+    }
+
+    toString() {
+        return this.source ?? "";
+    }
+
+    get [Symbol.toStringTag]() {
+        return this.toString();
     }
 
     // Set the shader source and optionally compile if autoCompile flag is set
@@ -60,7 +68,7 @@ export class GLShader {
     // Compile and handle errors with detailed logging
     private compileShader(type: number): WebGLShader {
         const shader = this.gl.createShader(type);
-        
+
         if (!shader) {
             throw new Error(`Unable to create shader of type ${type}`);
         }
