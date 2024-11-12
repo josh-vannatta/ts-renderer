@@ -199,8 +199,8 @@ export class GLProgram {
 
         try {
             location = this.getUniformLocation(name);
-        } catch (err) {
-            console.error(err)
+        } catch (err: any) {
+            console.warn(err.message)
             return;
         }
 

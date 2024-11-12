@@ -1,13 +1,17 @@
+import { GLBody, GLBuilder, GLName, GLParam, GLVersion } from "./GLSchema";
 import { GLContext } from "./GLContext";
+import { GLFunction } from "./GLFunction";
+import { GLType } from "./GLProgram";
+import { ShaderType } from "./GLShader";
 
 export class GLTextureBuffer {
     private gl: WebGL2RenderingContext;
     private textures: WebGLTexture[][] = [];
     private framebuffers: WebGLFramebuffer[] = [];
-    private currentTextureIndex = 0;
+    private swapIndex = 0;
     public width: number;
     public height: number;
-    private textureCapacity: number; // The max number of vec4's a single texture can hold
+    private capacity: number; // The max number of vec4's a single texture can hold
 
     constructor(context: GLContext, data: Float32Array) {
         this.gl = context.gl;
@@ -15,10 +19,10 @@ export class GLTextureBuffer {
         this.height = context.height;
         
         // Calculate capacity based on width and height (number of vec4's)
-        this.textureCapacity = this.width * this.height * 4; // Total floats per texture
+        this.capacity = this.width * this.height * 4; // Total floats per texture
 
         // Calculate the number of textures needed
-        const textureCount = Math.ceil(data.length / this.textureCapacity);
+        const textureCount = Math.ceil(data.length / this.capacity);
         
         // Initialize textures and framebuffers for ping-pong rendering
         for (let i = 0; i < 2; i++) { // Two sets for ping-ponging
@@ -26,9 +30,9 @@ export class GLTextureBuffer {
 
             for (let j = 0; j < textureCount; j++) {
                 // Slice the data for each texture, filling the rest with zeros if necessary
-                const start = j * this.textureCapacity;
-                const end = start + this.textureCapacity;
-                const textureData = new Float32Array(this.textureCapacity);
+                const start = j * this.capacity;
+                const end = start + this.capacity;
+                const textureData = new Float32Array(this.capacity);
                 textureData.set(data.slice(start, end)); // Fill with data, remaining values will be zero
                 
                 textures.push(this.createTexture(textureData));
@@ -81,23 +85,50 @@ export class GLTextureBuffer {
     }
 
     public get readFramebuffer(): WebGLFramebuffer {
-        return this.framebuffers[this.currentTextureIndex];
+        return this.framebuffers[this.swapIndex];
     }
 
     public get writeFramebuffer(): WebGLFramebuffer {
-        return this.framebuffers[(this.currentTextureIndex + 1) % this.framebuffers.length];
+        return this.framebuffers[(this.swapIndex + 1) % this.framebuffers.length];
     }
 
     public get readTextures(): WebGLTexture[] {
-        return this.textures[this.currentTextureIndex];
+        return this.textures[this.swapIndex];
     }
 
     public swap() {
-        this.currentTextureIndex = (this.currentTextureIndex + 1) % this.textures.length;
+        this.swapIndex = (this.swapIndex + 1) % this.textures.length;
     }
 
     public dispose() {
         this.textures.flat().forEach(texture  => this.gl.deleteTexture(texture));
         this.framebuffers.forEach(framebuffer => this.gl.deleteFramebuffer(framebuffer));
+    }
+
+    public static textureCount(context: GLContext, dataLength: number) {
+        const capacity = context.width * context.height * 4; 
+        return Math.ceil(dataLength / capacity);
+    }
+
+    public static shader(type: ShaderType, context?: GLContext, textureCount: number = 0) {
+        if (type == ShaderType.Vertex) {
+            return new GLBuilder(GLVersion.WebGL2)
+                .addInput(GLType.Vec3, "a_position")
+                .addMainBody(`gl_Position = vec4(a_position, 1.0);`);
+        }
+
+        const builder = new GLBuilder();
+
+        if (!context)
+            return builder;
+        
+        for (let i = 0; i < textureCount; i++) 
+            builder.addLayout(`fragColor${i}`, i)  
+
+        builder.addFunction(GLFunction.List.findByIndex("u_textures", textureCount));
+        builder.addUniform(GLType.Sampler2D, `u_textures[${textureCount}]`)
+        builder.addMainBody(`vec2 uv = gl_FragCoord.xy / vec2(${context.width},${context.height});`)
+
+        return builder;
     }
 }

@@ -1,4 +1,4 @@
-import { GLBuilder, GLVersion } from "../../glsl/GLBuilder";
+import { GLBuilder, GLVersion } from "../../glsl/GLSchema";
 import { GLContext } from "../../glsl/GLContext";
 import { GLType } from "../../glsl/GLProgram";
 import { GLDrawMode, GLRenderable } from "../../glsl/GLRenderable"; 

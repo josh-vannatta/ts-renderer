@@ -2,7 +2,7 @@ import * as babelParser from '@babel/parser';
 import traverse, { NodePath } from '@babel/traverse';
 import generate from '@babel/generator';
 import * as t from '@babel/types';
-import { GLBuilder } from './GLBuilder';
+import { GLBuilder } from './GLSchema';
 
 export class GLCompiler {
     private glslCode: string[] = [];

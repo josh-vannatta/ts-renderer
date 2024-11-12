@@ -1,7 +1,7 @@
 import { GLContext } from '../../glsl/GLContext';
 import { GLType } from '../../glsl/GLProgram';
 import { GLRenderable } from '../../glsl/GLRenderable';
-import { GLBuilder, GLVersion } from "../../glsl/GLBuilder";
+import { GLBuilder, GLVersion } from "../../glsl/GLSchema";
 import { GLDrawMode } from '../../glsl/GLRenderable';
 
 export class Lines extends GLRenderable {

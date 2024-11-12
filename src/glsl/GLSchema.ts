@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { GLType } from "./GLProgram";
+import { GLFunction } from "./GLFunction";
 
 export type GLUniforms = { [key: string]: THREE.IUniform };
 export type GLVaryings = { [key: string]: any }
@@ -23,29 +24,6 @@ export class GLParam {
     public static Sampler2D(name: string = "")   { return new GLParam(GLType.Sampler2D,  name, "")}
     public static SamplerCube(name: string = "") { return new GLParam(GLType.SamplerCube,name, "")}
     public static Bool(name: string = "")        { return new GLParam(GLType.Bool,       name, false)}
-}
-
-export class GLFunction {
-    public returnType: GLType | string;
-    public name: GLName;
-    public params: GLParam[];
-    public body: GLBody;
-
-    constructor(opts: Partial<GLFunction>) {
-        this.returnType = opts.returnType ?? GLType.Void;
-        this.name = opts.name ?? new GLName("function");
-        this.params = opts.params ?? [];
-        this.body = opts.body ?? new GLBody('');
-    }
-
-    build(): string {
-        const params = this.params.map(param => `${param.type} ${param.name}`).join(', ');
-        return `
-            ${this.returnType} ${this.name}(${params}) {
-                ${this.body}
-            }
-        `;
-    }
 }
 
 export class GLName {

@@ -1,4 +1,4 @@
-import { GLBuilder, GLVersion } from "../../glsl/GLBuilder";
+import { GLBuilder, GLVersion } from "../../glsl/GLSchema";
 import { GLType } from "../../glsl/GLProgram";
 import { GLRenderable } from "../../glsl/GLRenderable";
 
